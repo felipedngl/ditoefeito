@@ -17,6 +17,9 @@ import {
   Crown,
   QrCode,
   KeyRound,
+  Pencil,
+  Trash2,
+  Sparkles,
 } from "lucide-react";
 
 const TMDB_API_KEY = "f387a8d39e74287934d786c1f2c2fe57";
@@ -52,18 +55,20 @@ export default function Home() {
   const [selectedMode, setSelectedMode] = useState<ModeType>(null);
   const [activeView, setActiveView] = useState<ViewType>("busca");
 
-  // Estado de Controle da Conexão
-  const [roomCode, setRoomCode] = useState("");
+  // Código de Sala Personalizável pelo Host
+  const [customRoomCode, setCustomRoomCode] = useState("");
   const [isRoomJoined, setIsRoomJoined] = useState(false);
 
-  // Busca e Listas
+  // Busca e Resultados TMDB
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Modal do Filme Selecionado
+  // Modal de Avaliação do Filme
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [editingMovieId, setEditingMovieId] = useState<number | null>(null);
+  
   const [rating, setRating] = useState<number>(8);
   const [reviewText, setReviewText] = useState("");
   const [userName] = useState("Felipe");
@@ -73,21 +78,31 @@ export default function Home() {
 
   const [activeReviewModal, setActiveReviewModal] = useState<{ author: string; text: string } | null>(null);
 
-  // Lista de Filmes Avaliados
-  const [evaluatedList, setEvaluatedList] = useState<EvaluatedMovie[]>([
-    {
-      id: 550,
-      title: "Clube da Luta",
-      poster_path: "/pB8BM72569u398492.jpg",
-      release_date: "1999-10-15",
-      ratings: { Felipe: 9.5, Kelly: 9.0 },
-      averageRating: 9.25,
-      reviews: [
-        { author: "Felipe", text: "Excelente ritmo, atuação impecável e direção magistral do Fincher." },
-        { author: "Kelly", text: "Muito bom! O plot twist do final é surreal." },
-      ],
-    },
-  ]);
+  // Lista de Filmes Avaliados (Recupera do LocalStorage se existir)
+  const [evaluatedList, setEvaluatedList] = useState<EvaluatedMovie[]>([]);
+
+  // Carregar dados salvos no navegador ao abrir
+  useEffect(() => {
+    const savedData = localStorage.getItem("ditoefeito_evaluations");
+    if (savedData) {
+      try {
+        setEvaluatedList(JSON.parse(savedData));
+      } catch (e) {
+        console.error("Erro ao ler dados salvos:", e);
+      }
+    }
+  }, []);
+
+  // Salvar no LocalStorage sempre que a lista for alterada
+  useEffect(() => {
+    localStorage.setItem("ditoefeito_evaluations", JSON.stringify(evaluatedList));
+  }, [evaluatedList]);
+
+  // Gerar código de sala aleatório se o usuário quiser
+  const handleGenerateRandomCode = () => {
+    const randomCode = "SESSAO-" + Math.floor(1000 + Math.random() * 9000);
+    setCustomRoomCode(randomCode);
+  };
 
   // Carregar Populares
   useEffect(() => {
@@ -136,7 +151,7 @@ export default function Home() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  // Clique na Estrela (1 a 10 e .5)
+  // Clique na Estrela (1 a 10 e meias estrelas)
   const handleStarClick = (starIndex: number, currentVal: number, setValFunc: (v: number) => void) => {
     if (currentVal === starIndex) {
       setValFunc(starIndex - 0.5);
@@ -145,7 +160,35 @@ export default function Home() {
     }
   };
 
-  // Salvar Votação
+  // Abrir Modal de Edição de um Filme Já Avaliado
+  const handleEditEvaluation = (item: EvaluatedMovie) => {
+    const movieObj: Movie = {
+      id: item.id,
+      title: item.title,
+      poster_path: item.poster_path,
+      release_date: item.release_date,
+      vote_average: 0,
+      overview: "",
+    };
+
+    setSelectedMovie(movieObj);
+    setEditingMovieId(item.id);
+
+    setRating(item.ratings[userName] || 8);
+    setReviewText(item.reviews.find((r) => r.author === userName)?.text || "");
+
+    if (selectedMode === "duo" || selectedMode === "grupo") {
+      setPartnerRating(item.ratings[partnerName] || 7.5);
+      setPartnerReviewText(item.reviews.find((r) => r.author === partnerName)?.text || "");
+    }
+  };
+
+  // Excluir Avaliação
+  const handleDeleteEvaluation = (id: number) => {
+    setEvaluatedList((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // Salvar / Atualizar Votação
   const handleSaveEvaluation = () => {
     if (!selectedMovie) return;
 
@@ -179,6 +222,7 @@ export default function Home() {
 
     setEvaluatedList((prev) => [newEval, ...prev.filter((m) => m.id !== selectedMovie.id)]);
     setSelectedMovie(null);
+    setEditingMovieId(null);
     setReviewText("");
     setPartnerReviewText("");
     setActiveView("podio");
@@ -189,7 +233,6 @@ export default function Home() {
   const firstPlace = sortedPodiumList[0];
   const secondPlace = sortedPodiumList[1];
   const thirdPlace = sortedPodiumList[2];
-  const restOfPodium = sortedPodiumList.slice(3);
 
   return (
     <main
@@ -203,7 +246,6 @@ export default function Home() {
         overflowX: "hidden",
       }}
     >
-      {/* --- ESTILO DO RETRO GRID INLINE --- */}
       <style>{`
         .retro-grid-container {
           position: fixed;
@@ -211,7 +253,7 @@ export default function Home() {
           z-index: 0;
           pointer-events: none;
           overflow: hidden;
-          opacity: 0.4;
+          opacity: 0.35;
         }
         .retro-grid-plane {
           position: absolute;
@@ -230,7 +272,6 @@ export default function Home() {
         }
       `}</style>
 
-      {/* Fundo Retro Grid */}
       <div className="retro-grid-container">
         <div className="retro-grid-plane" />
       </div>
@@ -241,7 +282,6 @@ export default function Home() {
         {!selectedMode ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", gap: "2.5rem", textAlign: "center" }}>
             
-            {/* Header / Logo Centralizada */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
               <img
                 src="/logo.png"
@@ -253,18 +293,16 @@ export default function Home() {
                 DITO & FEITO
               </h1>
               <p style={{ color: "#22d3ee", fontSize: "1.1rem", margin: 0, letterSpacing: "2px", fontWeight: "600" }}>
-                SESSÃO DISCO & AVALIAÇÕES DE CINEMA
+                AVALIE SEUS FILMES
               </p>
             </div>
 
-            {/* Três Botões de Modo em Grade/Horizontal */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem", width: "100%" }}>
               
-              {/* Botão Solo */}
               <button
                 onClick={() => {
                   setSelectedMode("solo");
-                  setIsRoomJoined(true); // Solo vai direto para a busca
+                  setIsRoomJoined(true);
                 }}
                 style={{
                   backgroundColor: "rgba(15, 23, 42, 0.9)",
@@ -285,11 +323,10 @@ export default function Home() {
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliações individuais.</p>
               </button>
 
-              {/* Botão Casalzinho */}
               <button
                 onClick={() => {
                   setSelectedMode("duo");
-                  setIsRoomJoined(false); // Exige a tela de código/QR Code
+                  setIsRoomJoined(false);
                 }}
                 style={{
                   backgroundColor: "rgba(15, 23, 42, 0.9)",
@@ -310,11 +347,10 @@ export default function Home() {
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação conjunta, com a nota conjunta</p>
               </button>
 
-              {/* Botão Grupinho */}
               <button
                 onClick={() => {
                   setSelectedMode("grupo");
-                  setIsRoomJoined(false); // Exige a tela de código/QR Code
+                  setIsRoomJoined(false);
                 }}
                 style={{
                   backgroundColor: "rgba(15, 23, 42, 0.9)",
@@ -339,7 +375,7 @@ export default function Home() {
           </div>
         ) : !isRoomJoined ? (
 
-          /* ================= 2. TELA DE CONEXÃO (QR CODE / CÓDIGO) ================= */
+          /* ================= 2. TELA DE CRIAR / DIGITAR CÓDIGO DA SALA ================= */
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "75vh", justifyContent: "center", gap: "1.5rem" }}>
             <button
               onClick={() => setSelectedMode(null)}
@@ -364,27 +400,28 @@ export default function Home() {
               }}
             >
               <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.5rem" }}>
-                Conectar Sessão ({selectedMode === "duo" ? "Casalzinho" : "Grupinho"})
+                Criar / Entrar na Sala ({selectedMode === "duo" ? "Casalzinho" : "Grupinho"})
               </h2>
               <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: 0, lineHeight: "1.4" }}>
-                Escaneie o QR Code ou digite o código da sala para sincronizar as notas com o grupo.
+                Defina um código exclusivo para sua sala ou digite o código enviado pelo host.
               </p>
 
-              {/* Bloco de QR Code Stylized */}
+              {/* QR Code Dinâmico baseado no código digitado */}
               <div style={{ width: "170px", height: "170px", backgroundColor: "#020617", border: "2px solid #22d3ee", borderRadius: "1rem", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
                 <QrCode style={{ width: "85px", height: "85px", color: "#22d3ee" }} />
-                <span style={{ fontSize: "0.8rem", color: "#22d3ee", fontFamily: "monospace", fontWeight: "bold" }}>CÓDIGO: DISCO80</span>
+                <span style={{ fontSize: "0.8rem", color: "#22d3ee", fontFamily: "monospace", fontWeight: "bold" }}>
+                  {customRoomCode ? customRoomCode : "DIGITE O CÓDIGO"}
+                </span>
               </div>
 
-              {/* Form de Código */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
                 <div style={{ position: "relative" }}>
                   <KeyRound style={{ position: "absolute", left: "1rem", top: "0.85rem", width: "1.1rem", height: "1.1rem", color: "#22d3ee" }} />
                   <input
                     type="text"
-                    placeholder="DIGITE O CÓDIGO DA SALA"
-                    value={roomCode}
-                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                    placeholder="ESCREVA O CÓDIGO DA SALA (EX: CASAL123)"
+                    value={customRoomCode}
+                    onChange={(e) => setCustomRoomCode(e.target.value.toUpperCase())}
                     style={{
                       width: "100%",
                       backgroundColor: "#020617",
@@ -395,15 +432,27 @@ export default function Home() {
                       color: "#fff",
                       textTransform: "uppercase",
                       outline: "none",
-                      fontSize: "0.9rem",
-                      letterSpacing: "1px",
+                      fontSize: "0.85rem",
                       boxSizing: "border-box",
                     }}
                   />
                 </div>
 
                 <button
-                  onClick={() => setIsRoomJoined(true)}
+                  onClick={handleGenerateRandomCode}
+                  style={{ background: "none", border: "none", color: "#22d3ee", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline" }}
+                >
+                  ⚡ Gerar código aleatório
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!customRoomCode.trim()) {
+                      alert("Por favor, digite ou gere um código para a sala.");
+                      return;
+                    }
+                    setIsRoomJoined(true);
+                  }}
                   style={{
                     backgroundColor: "#06b6d4",
                     color: "#020617",
@@ -416,7 +465,7 @@ export default function Home() {
                     boxShadow: "0 0 15px rgba(6, 182, 212, 0.4)",
                   }}
                 >
-                  ENTRAR NA SESSÃO
+                  INICIAR SESSÃO CONJUNTA
                 </button>
               </div>
             </div>
@@ -424,10 +473,9 @@ export default function Home() {
 
         ) : (
 
-          /* ================= 3. ÁREA DE BUSCA, BIBLIOTECA E PÓDIO ================= */
+          /* ================= 3. ÁREA PRINCIPAL ================= */
           <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
             
-            {/* Topbar da Sessão */}
             <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(236,72,153,0.4)", padding: "1rem 1.25rem", borderRadius: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                 <button
@@ -440,12 +488,11 @@ export default function Home() {
                 <div>
                   <h1 style={{ fontSize: "1.2rem", color: "#ec4899", margin: 0, fontWeight: "bold" }}>DITO & FEITO</h1>
                   <span style={{ fontSize: "0.75rem", color: "#22d3ee", textTransform: "uppercase", fontWeight: "bold" }}>
-                    {selectedMode === "duo" ? "Casalzinho" : selectedMode}
+                    {selectedMode === "duo" ? "Casalzinho" : selectedMode} {customRoomCode && `(${customRoomCode})`}
                   </span>
                 </div>
               </div>
 
-              {/* Menu de Abas */}
               <nav style={{ display: "flex", gap: "0.4rem", backgroundColor: "#020617", padding: "0.3rem", borderRadius: "1rem" }}>
                 {[
                   { id: "busca", label: "Buscar Filmes", icon: Search },
@@ -482,7 +529,6 @@ export default function Home() {
             {/* --- ABA BUSCA DE FILMES --- */}
             {activeView === "busca" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                {/* Campo de Busca */}
                 <div style={{ position: "relative", width: "100%" }}>
                   <Search style={{ position: "absolute", left: "1.2rem", top: "1.1rem", width: "1.2rem", height: "1.2rem", color: "#ec4899" }} />
                   <input
@@ -510,12 +556,18 @@ export default function Home() {
                   <span>CLIQUE NA CAPA PARA AVALIAR</span>
                 </div>
 
-                {/* Grade Proporcional de Filmes Verticais */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: "1.25rem" }}>
                   {currentDisplayList.map((movie) => (
                     <div
                       key={movie.id}
-                      onClick={() => setSelectedMovie(movie)}
+                      onClick={() => {
+                        setSelectedMovie(movie);
+                        setEditingMovieId(null);
+                        setRating(8);
+                        setReviewText("");
+                        setPartnerRating(7.5);
+                        setPartnerReviewText("");
+                      }}
                       style={{
                         backgroundColor: "rgba(15, 23, 42, 0.8)",
                         border: "1px solid #1e293b",
@@ -525,10 +577,8 @@ export default function Home() {
                         display: "flex",
                         flexDirection: "column",
                         gap: "0.5rem",
-                        transition: "transform 0.2s, border-color 0.2s",
                       }}
                     >
-                      {/* Capa Proporcional 2:3 */}
                       <div style={{ aspectRatio: "2/3", width: "100%", backgroundColor: "#020617", borderRadius: "0.75rem", overflow: "hidden", position: "relative" }}>
                         {movie.poster_path ? (
                           <img
@@ -556,38 +606,71 @@ export default function Home() {
               </div>
             )}
 
-            {/* --- ABA BIBLIOTECA --- */}
+            {/* --- ABA BIBLIOTECA (COM BOTÕES DE EDITAR E DELETAR) --- */}
             {activeView === "biblioteca" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                 <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.4rem" }}>Biblioteca de Filmes Avaliados</h2>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem" }}>
-                  {evaluatedList.map((item) => (
-                    <div key={item.id} style={{ backgroundColor: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(34, 211, 238, 0.3)", padding: "1rem", borderRadius: "1.25rem", display: "flex", gap: "1rem" }}>
-                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} style={{ width: "75px", height: "110px", borderRadius: "0.6rem", objectFit: "cover" }} />
-                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
-                        <h3 style={{ margin: 0, fontSize: "1rem", color: "#fff" }}>{item.title}</h3>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                          {Object.entries(item.ratings).map(([author, score]) => (
-                            <span key={author} style={{ backgroundColor: "#020617", padding: "0.25rem 0.5rem", borderRadius: "0.5rem", fontSize: "0.75rem", color: "#ec4899", border: "1px solid #1e293b" }}>
-                              {author}: {score} ★
-                            </span>
-                          ))}
-                        </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "auto" }}>
-                          {item.reviews.map((rev) => (
-                            <button
-                              key={rev.author}
-                              onClick={() => setActiveReviewModal(rev)}
-                              style={{ backgroundColor: "rgba(34,211,238,0.15)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.4)", borderRadius: "0.5rem", padding: "0.2rem 0.5rem", fontSize: "0.7rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.2rem" }}
-                            >
-                              <MessageSquare style={{ width: "0.7rem", height: "0.7rem" }} /> Crítica de {rev.author}
-                            </button>
-                          ))}
+                
+                {evaluatedList.length === 0 ? (
+                  <div style={{ backgroundColor: "rgba(15, 23, 42, 0.6)", padding: "2.5rem", borderRadius: "1.5rem", textAlign: "center", color: "#94a3b8" }}>
+                    <BookOpen style={{ width: "2.5rem", height: "2.5rem", margin: "0 auto 1rem auto", color: "#ec4899" }} />
+                    <p style={{ margin: 0 }}>Nenhum filme avaliado ainda.</p>
+                    <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Pesquise um filme na aba "Buscar Filmes" para dar sua nota!</span>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem" }}>
+                    {evaluatedList.map((item) => (
+                      <div key={item.id} style={{ backgroundColor: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(34, 211, 238, 0.3)", padding: "1rem", borderRadius: "1.25rem", display: "flex", gap: "1rem", position: "relative" }}>
+                        
+                        <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} style={{ width: "75px", height: "110px", borderRadius: "0.6rem", objectFit: "cover" }} />
+                        
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <h3 style={{ margin: 0, fontSize: "1rem", color: "#fff" }}>{item.title}</h3>
+                            
+                            {/* Botões de Ação: Editar / Deletar */}
+                            <div style={{ display: "flex", gap: "0.4rem" }}>
+                              <button
+                                onClick={() => handleEditEvaluation(item)}
+                                style={{ background: "none", border: "none", color: "#22d3ee", cursor: "pointer", padding: "0.2rem" }}
+                                title="Editar Nota"
+                              >
+                                <Pencil style={{ width: "0.9rem", height: "0.9rem" }} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteEvaluation(item.id)}
+                                style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "0.2rem" }}
+                                title="Excluir Filme"
+                              >
+                                <Trash2 style={{ width: "0.9rem", height: "0.9rem" }} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                            {Object.entries(item.ratings).map(([author, score]) => (
+                              <span key={author} style={{ backgroundColor: "#020617", padding: "0.25rem 0.5rem", borderRadius: "0.5rem", fontSize: "0.75rem", color: "#ec4899", border: "1px solid #1e293b" }}>
+                                {author}: {score} ★
+                              </span>
+                            ))}
+                          </div>
+
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "auto" }}>
+                            {item.reviews.map((rev) => (
+                              <button
+                                key={rev.author}
+                                onClick={() => setActiveReviewModal(rev)}
+                                style={{ backgroundColor: "rgba(34,211,238,0.15)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.4)", borderRadius: "0.5rem", padding: "0.2rem 0.5rem", fontSize: "0.7rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.2rem" }}
+                              >
+                                <MessageSquare style={{ width: "0.7rem", height: "0.7rem" }} /> Crítica de {rev.author}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -599,47 +682,53 @@ export default function Home() {
                   <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "0.25rem" }}>Classificação baseada na nota média</p>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", justifyContent: "center", width: "100%", maxWidth: "600px" }}>
-                  {/* 2º Lugar */}
-                  {secondPlace && (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                      <div style={{ width: "90px", height: "135px", borderRadius: "0.75rem", overflow: "hidden", border: "2px solid #22d3ee" }}>
-                        <img src={`https://image.tmdb.org/t/p/w500${secondPlace.poster_path}`} alt={secondPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {evaluatedList.length === 0 ? (
+                  <div style={{ color: "#64748b", fontSize: "0.9rem" }}>
+                    Nenhum filme no pódio ainda.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", justifyContent: "center", width: "100%", maxWidth: "600px" }}>
+                    {/* 2º Lugar */}
+                    {secondPlace && (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                        <div style={{ width: "90px", height: "135px", borderRadius: "0.75rem", overflow: "hidden", border: "2px solid #22d3ee" }}>
+                          <img src={`https://image.tmdb.org/t/p/w500${secondPlace.poster_path}`} alt={secondPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </div>
+                        <span style={{ fontSize: "0.85rem", color: "#22d3ee", fontWeight: "bold", marginTop: "0.5rem" }}>{secondPlace.averageRating} ★</span>
+                        <div style={{ width: "100%", height: "100px", backgroundColor: "rgba(6,182,212,0.2)", borderTop: "3px solid #22d3ee", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem", fontWeight: "bold", color: "#22d3ee" }}>2</div>
                       </div>
-                      <span style={{ fontSize: "0.85rem", color: "#22d3ee", fontWeight: "bold", marginTop: "0.5rem" }}>{secondPlace.averageRating} ★</span>
-                      <div style={{ width: "100%", height: "100px", backgroundColor: "rgba(6,182,212,0.2)", borderTop: "3px solid #22d3ee", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem", fontWeight: "bold", color: "#22d3ee" }}>2</div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* 1º Lugar */}
-                  {firstPlace && (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, marginTop: "-2rem" }}>
-                      <Crown style={{ width: "2.5rem", height: "2.5rem", color: "#eab308", marginBottom: "0.25rem" }} />
-                      <div style={{ width: "110px", height: "165px", borderRadius: "0.75rem", overflow: "hidden", border: "3px solid #eab308", boxShadow: "0 0 25px rgba(234,179,8,0.4)" }}>
-                        <img src={`https://image.tmdb.org/t/p/w500${firstPlace.poster_path}`} alt={firstPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    {/* 1º Lugar */}
+                    {firstPlace && (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, marginTop: "-2rem" }}>
+                        <Crown style={{ width: "2.5rem", height: "2.5rem", color: "#eab308", marginBottom: "0.25rem" }} />
+                        <div style={{ width: "110px", height: "165px", borderRadius: "0.75rem", overflow: "hidden", border: "3px solid #eab308", boxShadow: "0 0 25px rgba(234,179,8,0.4)" }}>
+                          <img src={`https://image.tmdb.org/t/p/w500${firstPlace.poster_path}`} alt={firstPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </div>
+                        <span style={{ fontSize: "1rem", color: "#eab308", fontWeight: "bold", marginTop: "0.5rem" }}>{firstPlace.averageRating} ★</span>
+                        <div style={{ width: "100%", height: "140px", backgroundColor: "rgba(234,179,8,0.25)", borderTop: "4px solid #eab308", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", fontWeight: "bold", color: "#eab308" }}>1</div>
                       </div>
-                      <span style={{ fontSize: "1rem", color: "#eab308", fontWeight: "bold", marginTop: "0.5rem" }}>{firstPlace.averageRating} ★</span>
-                      <div style={{ width: "100%", height: "140px", backgroundColor: "rgba(234,179,8,0.25)", borderTop: "4px solid #eab308", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", fontWeight: "bold", color: "#eab308" }}>1</div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* 3º Lugar */}
-                  {thirdPlace && (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                      <div style={{ width: "90px", height: "135px", borderRadius: "0.75rem", overflow: "hidden", border: "2px solid #ec4899" }}>
-                        <img src={`https://image.tmdb.org/t/p/w500${thirdPlace.poster_path}`} alt={thirdPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    {/* 3º Lugar */}
+                    {thirdPlace && (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                        <div style={{ width: "90px", height: "135px", borderRadius: "0.75rem", overflow: "hidden", border: "2px solid #ec4899" }}>
+                          <img src={`https://image.tmdb.org/t/p/w500${thirdPlace.poster_path}`} alt={thirdPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </div>
+                        <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold", marginTop: "0.5rem" }}>{thirdPlace.averageRating} ★</span>
+                        <div style={{ width: "100%", height: "80px", backgroundColor: "rgba(236,72,153,0.2)", borderTop: "3px solid #ec4899", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem", fontWeight: "bold", color: "#ec4899" }}>3</div>
                       </div>
-                      <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold", marginTop: "0.5rem" }}>{thirdPlace.averageRating} ★</span>
-                      <div style={{ width: "100%", height: "80px", backgroundColor: "rgba(236,72,153,0.2)", borderTop: "3px solid #ec4899", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem", fontWeight: "bold", color: "#ec4899" }}>3</div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* ================= MODAL DE AVALIAÇÃO DO FILME ================= */}
+        {/* ================= MODAL DE AVALIAÇÃO / EDIÇÃO DO FILME ================= */}
         {selectedMovie && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(2,6,23,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 100 }}>
             <div style={{ backgroundColor: "#0f172a", border: "1px solid rgba(236,72,153,0.5)", borderRadius: "1.5rem", padding: "1.5rem", maxWidth: "520px", width: "100%", display: "flex", flexDirection: "column", gap: "1.25rem", position: "relative", boxSizing: "border-box" }}>
@@ -648,19 +737,19 @@ export default function Home() {
                 <X style={{ width: "1.25rem", height: "1.25rem" }} />
               </button>
 
-              {/* Header do Filme */}
               <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
                 <img src={`https://image.tmdb.org/t/p/w500${selectedMovie.poster_path}`} alt={selectedMovie.title} style={{ width: "90px", height: "135px", borderRadius: "0.6rem", objectFit: "cover" }} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", flex: 1 }}>
                   <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#fff" }}>{selectedMovie.title}</h3>
-                  <span style={{ fontSize: "0.75rem", color: "#eab308", fontWeight: "bold" }}>TMDB: {selectedMovie.vote_average?.toFixed(1)} / 10 ★</span>
+                  <span style={{ fontSize: "0.75rem", color: "#eab308", fontWeight: "bold" }}>
+                    {editingMovieId ? "Modo de Edição" : `TMDB: ${selectedMovie.vote_average?.toFixed(1) || "N/A"} / 10 ★`}
+                  </span>
                   <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: 0, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: "1.3" }}>
-                    {selectedMovie.overview || "Sem sinopse."}
+                    {selectedMovie.overview || "Sem sinopse cadastrada."}
                   </p>
                 </div>
               </div>
 
-              {/* Votação Principal */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold" }}>Nota de {userName}: {rating} / 10 ★</span>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -678,7 +767,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* Votação Dupla (Casalzinho / Grupinho) */}
               {(selectedMode === "duo" || selectedMode === "grupo") && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", borderTop: "1px solid #1e293b", paddingTop: "0.75rem" }}>
                   <span style={{ fontSize: "0.85rem", color: "#22d3ee", fontWeight: "bold" }}>Nota de {partnerName}: {partnerRating} / 10 ★</span>
@@ -699,7 +787,7 @@ export default function Home() {
               )}
 
               <button onClick={handleSaveEvaluation} style={{ backgroundColor: "#db2777", color: "#fff", border: "none", borderRadius: "0.75rem", padding: "0.85rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.9rem" }}>
-                ENVIAR AVALIAÇÃO
+                {editingMovieId ? "ATUALIZAR AVALIAÇÃO" : "ENVIAR AVALIAÇÃO"}
               </button>
             </div>
           </div>
