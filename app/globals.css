@@ -2,51 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;600;700&family=VT323&display=swap');
 
 :root {
-  --font-pixel: 'Press Start 2P', monospace;
+  --font-pixel: 'Press Start 2P', cursive;
   --font-retro: 'VT323', monospace;
+  --font-main: 'Rajdhani', sans-serif;
 }
 
 body {
-  background-color: #080c14;
+  background-color: #060913;
   color: #f8fafc;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-main);
   min-height: 100vh;
   margin: 0;
   padding: 0;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(255, 0, 127, 0.12) 0%, transparent 60%),
+    linear-gradient(to bottom, #060913, #03050a);
+  background-attachment: fixed;
 }
 
-.font-pixel {
-  font-family: var(--font-pixel);
-}
+.font-pixel { font-family: var(--font-pixel); }
+.font-retro { font-family: var(--font-retro); }
 
-.font-retro {
-  font-family: var(--font-retro);
-}
-
-.text-glow-pink {
-  text-shadow: 0 0 8px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4);
-}
-
-.text-glow-blue {
-  text-shadow: 0 0 8px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4);
-}
+/* Efeitos Glow Neon */
+.text-glow-pink { text-shadow: 0 0 10px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4); }
+.text-glow-blue { text-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4); }
+.text-glow-gold { text-shadow: 0 0 10px rgba(234, 179, 8, 0.8), 0 0 20px rgba(234, 179, 8, 0.4); }
 
 .box-glow-pink {
-  box-shadow: 0 0 15px rgba(255, 0, 127, 0.25), inset 0 0 15px rgba(255, 0, 127, 0.1);
+  box-shadow: 0 0 20px rgba(255, 0, 127, 0.25), inset 0 0 15px rgba(255, 0, 127, 0.08);
 }
 
 .box-glow-blue {
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25), inset 0 0 15px rgba(0, 240, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.25), inset 0 0 15px rgba(0, 240, 255, 0.08);
 }
 
-.btn-neon-hover {
-  transition: all 0.2s ease;
+.box-glow-gold {
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.35), inset 0 0 15px rgba(234, 179, 8, 0.1);
 }
 
-.btn-neon-hover:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.2);
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover:hover {
+  transform: translateY(-4px) scale(1.01);
 }
