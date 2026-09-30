@@ -265,26 +265,53 @@ export default function Home() {
   return (
     <main style={{ minHeight: "100vh", backgroundColor: "#060913", color: "#f8fafc", padding: "2rem 1rem", fontFamily: "sans-serif", position: "relative", overflowX: "hidden" }}>
       
+{/* Fundo Cósmico / Universo (Milky Way Style) */}
       <style>{`
-        .retro-grid-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-        .retro-grid-lines {
-          position: absolute; inset: -100%;
-          background-image: linear-gradient(to right, rgba(236, 72, 153, 0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(236, 72, 153, 0.35) 1px, transparent 1px);
-          background-size: 50px 50px;
-          transform: perspective(500px) rotateX(65deg);
-          animation: grid-scroll 12s linear infinite;
-          transform-origin: 50% 0;
+        .universe-bg {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          background: radial-gradient(circle at 50% 50%, #0b0f19 0%, #030712 100%);
+          overflow: hidden;
         }
-        .retro-grid-overlay {
-          position: absolute; inset: 0;
-          background: radial-gradient(circle at 50% 30%, rgba(6, 9, 19, 0.5) 10%, rgba(6, 9, 19, 0.95) 90%);
+        .stars-layer {
+          position: absolute;
+          inset: -50%;
+          background-image: 
+            radial-gradient(1px 1px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(1.5px 1.5px at 40px 70px, #22d3ee, rgba(0,0,0,0)),
+            radial-gradient(1px 1px at 90px 40px, #ec4899, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 160px 120px, #ffffff, rgba(0,0,0,0));
+          background-repeat: repeat;
+          background-size: 200px 200px;
+          animation: universe-drift 60s linear infinite;
+          opacity: 0.6;
         }
-        @keyframes grid-scroll { 0% { transform: perspective(500px) rotateX(65deg) translateY(0); } 100% { transform: perspective(500px) rotateX(65deg) translateY(50px); } }
+        .nebula-glow {
+          position: absolute;
+          width: 600px;
+          height: 600px;
+          background: radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(34, 211, 238, 0.05) 50%, transparent 80%);
+          top: 20%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          filter: blur(80px);
+          animation: nebula-pulse 10s ease-in-out infinite alternate;
+        }
+        @keyframes universe-drift {
+          0% { transform: translateY(0) rotate(0deg); }
+          100% { transform: translateY(-200px) rotate(360deg); }
+        }
+        @keyframes nebula-pulse {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+          100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+        }
       `}</style>
 
-      <div className="retro-grid-bg">
-        <div className="retro-grid-lines" />
-        <div className="retro-grid-overlay" />
+      <div className="universe-bg">
+        <div className="nebula-glow" />
+        <div className="stars-layer" />
       </div>
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", position: "relative", zIndex: 10 }}>
