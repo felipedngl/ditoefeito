@@ -33,16 +33,16 @@ export default function Page() {
   const [currentUser, setCurrentUser] = useState("user1");
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [selectedMedia, setSelectedMedia] = useState(null);
-  const [editingMediaId, setEditingMediaId] = useState(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<any>(null);
+  const [editingMediaId, setEditingMediaId] = useState<any>(null);
 
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [partnerRating, setPartnerRating] = useState(5);
   const [partnerReviewText, setPartnerReviewText] = useState("");
 
-  const [mediaList, setMediaList] = useState([]);
+  const [mediaList, setMediaList] = useState<any[]>([]);
 
   // Simulação de busca na TMDB
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function Page() {
         .then((res) => res.json())
         .then((data) => {
           if (data.results) {
-            setSearchResults(data.results.filter(item => item.media_type === 'movie' || item.media_type === 'tv'));
+            setSearchResults(data.results.filter((item: any) => item.media_type === 'movie' || item.media_type === 'tv'));
           }
         })
         .catch((err) => console.error("Erro ao buscar:", err));
@@ -60,7 +60,7 @@ export default function Page() {
     }
   }, [searchTerm]);
 
-  const handleStarClick = (star, currentVal, setter) => {
+  const handleStarClick = (star: number, currentVal: number, setter: (val: number) => void) => {
     setter(star);
   };
 
@@ -85,7 +85,7 @@ export default function Page() {
     ].filter(r => r.text);
 
     const ratingsValues = Object.values(newRatings);
-    const averageRating = (ratingsValues.reduce((a, b) => a + b, 0) / ratingsValues.length).toFixed(1);
+    const averageRating = (ratingsValues.reduce((a: any, b: any) => a + b, 0) / ratingsValues.length).toFixed(1);
 
     const existingIndex = mediaList.findIndex((m) => m.id === mediaId);
 
@@ -121,16 +121,16 @@ export default function Page() {
     setEditingMediaId(null);
   };
 
-  const handleDeleteItem = (id) => {
+  const handleDeleteItem = (id: any) => {
     setMediaList(mediaList.filter(item => item.id !== id));
   };
 
-  const handleOpenEdit = (item) => {
+  const handleOpenEdit = (item: any) => {
     setSelectedMedia(item);
     setRating(item.ratings?.user1 || 5);
     setPartnerRating(item.ratings?.user2 || 5);
-    const myRev = item.reviews?.find(r => r.author === currentUser)?.text || "";
-    const partnerRev = item.reviews?.find(r => r.author === "user2")?.text || "";
+    const myRev = item.reviews?.find((r: any) => r.author === currentUser)?.text || "";
+    const partnerRev = item.reviews?.find((r: any) => r.author === "user2")?.text || "";
     setReviewText(myRev);
     setPartnerReviewText(partnerRev);
     setEditingMediaId(item.id);
@@ -141,8 +141,8 @@ export default function Page() {
     alert("Link do perfil copiado para a área de transferência!");
   };
 
-  const moviesList = mediaList.filter(m => m.mediaType === "movie").sort((a, b) => b.averageRating - a.averageRating);
-  const seriesList = mediaList.filter(m => m.mediaType === "tv").sort((a, b) => b.averageRating - a.averageRating);
+  const moviesList = mediaList.filter(m => m.mediaType === "movie").sort((a, b) => Number(b.averageRating) - Number(a.averageRating));
+  const seriesList = mediaList.filter(m => m.mediaType === "tv").sort((a, b) => Number(b.averageRating) - Number(a.averageRating));
   const userPersonalEvaluations = mediaList.filter(m => m.ratings[currentUser]);
 
   return (
@@ -356,7 +356,7 @@ export default function Page() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                   {userPersonalEvaluations.map((item) => {
                     const myRating = item.ratings[currentUser];
-                    const myReview = item.reviews.find((r) => r.author === currentUser)?.text;
+                    const myReview = item.reviews.find((r: any) => r.author === currentUser)?.text;
                     return (
                       <div key={item.id} style={{ backgroundColor: "rgba(15, 23, 42, 0.9)", border: "1px solid #1e293b", padding: "1rem", borderRadius: "1rem", display: "flex", gap: "1rem", alignItems: "center" }}>
                         <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt="" style={{ width: "55px", height: "80px", borderRadius: "0.5rem", objectFit: "cover" }} />
