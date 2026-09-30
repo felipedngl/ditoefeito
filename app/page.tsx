@@ -15,6 +15,8 @@ import {
   ArrowLeft,
   MessageSquare,
   Crown,
+  QrCode,
+  KeyRound,
 } from "lucide-react";
 
 const TMDB_API_KEY = "f387a8d39e74287934d786c1f2c2fe57";
@@ -50,6 +52,10 @@ export default function Home() {
   const [selectedMode, setSelectedMode] = useState<ModeType>(null);
   const [activeView, setActiveView] = useState<ViewType>("busca");
 
+  // Estado de Controle da Conexão
+  const [roomCode, setRoomCode] = useState("");
+  const [isRoomJoined, setIsRoomJoined] = useState(false);
+
   // Busca e Listas
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
@@ -60,12 +66,11 @@ export default function Home() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [rating, setRating] = useState<number>(8);
   const [reviewText, setReviewText] = useState("");
-  const [userName, setUserName] = useState("Felipe");
-  const [partnerName, setPartnerName] = useState("Kelly");
+  const [userName] = useState("Felipe");
+  const [partnerName] = useState("Kelly");
   const [partnerRating, setPartnerRating] = useState<number>(7.5);
   const [partnerReviewText, setPartnerReviewText] = useState("");
 
-  // Modal de Leitura de Crítica
   const [activeReviewModal, setActiveReviewModal] = useState<{ author: string; text: string } | null>(null);
 
   // Lista de Filmes Avaliados
@@ -82,20 +87,9 @@ export default function Home() {
         { author: "Kelly", text: "Muito bom! O plot twist do final é surreal." },
       ],
     },
-    {
-      id: 680,
-      title: "Pulp Fiction: Tempo de Violência",
-      poster_path: "/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
-      release_date: "1994-09-10",
-      ratings: { Felipe: 10.0, Kelly: 8.5 },
-      averageRating: 9.25,
-      reviews: [
-        { author: "Felipe", text: "Clássico supremo do Tarantino. Trilha sonora e diálogos perfeitos." },
-      ],
-    },
   ]);
 
-  // Carregar filmes em alta do TMDB na abertura
+  // Carregar Populares
   useEffect(() => {
     const fetchTrending = async () => {
       try {
@@ -113,7 +107,7 @@ export default function Home() {
     fetchTrending();
   }, []);
 
-  // Busca em tempo real após 3 letras
+  // Busca TMDB
   useEffect(() => {
     const fetchSearch = async () => {
       if (searchQuery.trim().length < 3) {
@@ -142,7 +136,7 @@ export default function Home() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  // Clique na estrela (suporte a meia estrela)
+  // Clique na Estrela (1 a 10 e .5)
   const handleStarClick = (starIndex: number, currentVal: number, setValFunc: (v: number) => void) => {
     if (currentVal === starIndex) {
       setValFunc(starIndex - 0.5);
@@ -151,7 +145,7 @@ export default function Home() {
     }
   };
 
-  // Salvar Avaliação
+  // Salvar Votação
   const handleSaveEvaluation = () => {
     if (!selectedMovie) return;
 
@@ -191,8 +185,6 @@ export default function Home() {
   };
 
   const currentDisplayList = searchQuery.length >= 3 ? searchResults : trendingMovies;
-
-  // Ordenação para o Pódio
   const sortedPodiumList = [...evaluatedList].sort((a, b) => b.averageRating - a.averageRating);
   const firstPlace = sortedPodiumList[0];
   const secondPlace = sortedPodiumList[1];
@@ -200,434 +192,535 @@ export default function Home() {
   const restOfPodium = sortedPodiumList.slice(3);
 
   return (
-    <main className="min-h-screen text-slate-100 px-4 py-8 max-w-5xl mx-auto space-y-10 font-sans">
-      {/* --- TELA INICIAL: LOGO NO MEIO SUPERIOR + BOTÕES HORIZONTAIS --- */}
-      {!selectedMode ? (
-        <div className="flex flex-col items-center justify-center min-h-[85vh] space-y-10">
-          {/* Logo Centralizada no Meio Superior */}
-          <div className="flex flex-col items-center gap-3 text-center">
-            <img
-              src="/logo.png"
-              alt="Dito & Feito Logo"
-              style={{ 
-                maxWidth: "180px", 
-                maxHeight: "120px", 
-                width: "auto", 
-                height: "auto", 
-                objectFit: "contain",
-                margin: "0 auto 1rem auto",
-                display: "block"
-              }}
-            />
-            <h1 className="text-3xl md:text-5xl font-bold tracking-wider text-pink-500 text-glow-pink">
-              DITO & FEITO
-            </h1>
-            <p className="text-cyan-400 font-retro text-xl md:text-2xl text-glow-blue tracking-widest">
-              SESSÃO DISCO & AVALIAÇÕES DE CINEMA
-            </p>
-          </div>
+    <main
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#060913",
+        color: "#f8fafc",
+        padding: "2rem 1rem",
+        fontFamily: "sans-serif",
+        position: "relative",
+        overflowX: "hidden",
+      }}
+    >
+      {/* --- ESTILO DO RETRO GRID INLINE --- */}
+      <style>{`
+        .retro-grid-container {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          overflow: hidden;
+          opacity: 0.4;
+        }
+        .retro-grid-plane {
+          position: absolute;
+          inset: -100%;
+          background-image: 
+            linear-gradient(to right, rgba(236, 72, 153, 0.3) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(236, 72, 153, 0.3) 1px, transparent 1px);
+          background-size: 50px 50px;
+          transform: perspective(600px) rotateX(60deg);
+          animation: grid-slide 12s linear infinite;
+          transform-origin: 50% 0;
+        }
+        @keyframes grid-slide {
+          0% { transform: perspective(600px) rotateX(60deg) translateY(0); }
+          100% { transform: perspective(600px) rotateX(60deg) translateY(50px); }
+        }
+      `}</style>
 
-          {/* Botões Horizontais com Layout Bonito */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
-            {/* Solo */}
-            <button
-              onClick={() => setSelectedMode("solo")}
-              className="group bg-slate-900/90 border border-pink-500/40 p-6 rounded-3xl box-glow-pink card-hover flex flex-col items-center text-center cursor-pointer space-y-3"
-            >
-              <div className="p-3.5 bg-pink-500/10 rounded-2xl border border-pink-500/30 group-hover:scale-110 transition-transform">
-                <User className="w-8 h-8 text-pink-400" />
-              </div>
-              <h3 className="text-xl font-bold text-pink-400">Solo</h3>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                Avaliações individuais.
-              </p>
-            </button>
+      {/* Fundo Retro Grid */}
+      <div className="retro-grid-container">
+        <div className="retro-grid-plane" />
+      </div>
 
-            {/* Casalzinho */}
-            <button
-              onClick={() => setSelectedMode("duo")}
-              className="group bg-slate-900/90 border border-cyan-500/40 p-6 rounded-3xl box-glow-blue card-hover flex flex-col items-center text-center cursor-pointer space-y-3"
-            >
-              <div className="p-3.5 bg-cyan-500/10 rounded-2xl border border-cyan-500/30 group-hover:scale-110 transition-transform">
-                <Heart className="w-8 h-8 text-cyan-400 fill-cyan-400/20" />
-              </div>
-              <h3 className="text-xl font-bold text-cyan-400">Casalzinho</h3>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                Avaliação conjunta, com a nota conjunta
+      <div style={{ maxWidth: "1000px", margin: "0 auto", position: "relative", zIndex: 10 }}>
+        
+        {/* ================= 1. TELA INICIAL ================= */}
+        {!selectedMode ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", gap: "2.5rem", textAlign: "center" }}>
+            
+            {/* Header / Logo Centralizada */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+              <img
+                src="/logo.png"
+                alt="Dito & Feito Logo"
+                style={{ maxWidth: "160px", maxHeight: "110px", objectFit: "contain", marginBottom: "0.5rem" }}
+                onError={(e) => ((e.target as HTMLElement).style.display = "none")}
+              />
+              <h1 style={{ fontSize: "2.5rem", fontWeight: "bold", color: "#ec4899", margin: 0, textShadow: "0 0 20px rgba(236,72,153,0.6)" }}>
+                DITO & FEITO
+              </h1>
+              <p style={{ color: "#22d3ee", fontSize: "1.1rem", margin: 0, letterSpacing: "2px", fontWeight: "600" }}>
+                SESSÃO DISCO & AVALIAÇÕES DE CINEMA
               </p>
-            </button>
+            </div>
 
-            {/* Grupinho */}
-            <button
-              onClick={() => setSelectedMode("grupo")}
-              className="group bg-slate-900/90 border border-yellow-500/40 p-6 rounded-3xl box-glow-gold card-hover flex flex-col items-center text-center cursor-pointer space-y-3"
-            >
-              <div className="p-3.5 bg-yellow-500/10 rounded-2xl border border-yellow-500/30 group-hover:scale-110 transition-transform">
-                <Users className="w-8 h-8 text-yellow-400" />
-              </div>
-              <h3 className="text-xl font-bold text-yellow-400">Grupinho</h3>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                Avaliação de 3 a 10 amigos juntos.
-              </p>
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* --- INTERFACE PRINCIPAL APÓS ENTRAR EM UM MODO --- */
-        <div className="space-y-8">
-          {/* Cabeçalho */}
-          <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-900/90 border border-pink-500/30 p-5 rounded-3xl box-glow-pink">
-            <div className="flex items-center gap-4">
+            {/* Três Botões de Modo em Grade/Horizontal */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem", width: "100%" }}>
+              
+              {/* Botão Solo */}
               <button
-                onClick={() => setSelectedMode(null)}
-                className="p-2.5 bg-slate-950 hover:bg-pink-600/20 border border-pink-500/30 rounded-2xl text-pink-400 transition-all"
-                title="Voltar ao início"
+                onClick={() => {
+                  setSelectedMode("solo");
+                  setIsRoomJoined(true); // Solo vai direto para a busca
+                }}
+                style={{
+                  backgroundColor: "rgba(15, 23, 42, 0.9)",
+                  border: "1px solid rgba(236, 72, 153, 0.5)",
+                  borderRadius: "1.5rem",
+                  padding: "1.75rem 1.25rem",
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  boxShadow: "0 0 20px rgba(236, 72, 153, 0.15)",
+                }}
               >
-                <ArrowLeft className="w-5 h-5" />
+                <User style={{ width: "2.25rem", height: "2.25rem", color: "#ec4899" }} />
+                <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#ec4899", margin: 0 }}>Solo</h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliações individuais.</p>
               </button>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-bold text-pink-500 text-glow-pink">DITO & FEITO</h1>
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold uppercase">
+
+              {/* Botão Casalzinho */}
+              <button
+                onClick={() => {
+                  setSelectedMode("duo");
+                  setIsRoomJoined(false); // Exige a tela de código/QR Code
+                }}
+                style={{
+                  backgroundColor: "rgba(15, 23, 42, 0.9)",
+                  border: "1px solid rgba(34, 211, 238, 0.5)",
+                  borderRadius: "1.5rem",
+                  padding: "1.75rem 1.25rem",
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  boxShadow: "0 0 20px rgba(34, 211, 238, 0.15)",
+                }}
+              >
+                <Heart style={{ width: "2.25rem", height: "2.25rem", color: "#22d3ee" }} />
+                <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#22d3ee", margin: 0 }}>Casalzinho</h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação conjunta, com a nota conjunta</p>
+              </button>
+
+              {/* Botão Grupinho */}
+              <button
+                onClick={() => {
+                  setSelectedMode("grupo");
+                  setIsRoomJoined(false); // Exige a tela de código/QR Code
+                }}
+                style={{
+                  backgroundColor: "rgba(15, 23, 42, 0.9)",
+                  border: "1px solid rgba(234, 179, 8, 0.5)",
+                  borderRadius: "1.5rem",
+                  padding: "1.75rem 1.25rem",
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  boxShadow: "0 0 20px rgba(234, 179, 8, 0.15)",
+                }}
+              >
+                <Users style={{ width: "2.25rem", height: "2.25rem", color: "#eab308" }} />
+                <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#eab308", margin: 0 }}>Grupinho</h3>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação de 3 a 10 amigos juntos.</p>
+              </button>
+
+            </div>
+          </div>
+        ) : !isRoomJoined ? (
+
+          /* ================= 2. TELA DE CONEXÃO (QR CODE / CÓDIGO) ================= */
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "75vh", justifyContent: "center", gap: "1.5rem" }}>
+            <button
+              onClick={() => setSelectedMode(null)}
+              style={{ background: "none", border: "none", color: "#ec4899", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}
+            >
+              <ArrowLeft style={{ width: "1.1rem", height: "1.1rem" }} /> Voltar para Seleção de Modo
+            </button>
+
+            <div
+              style={{
+                backgroundColor: "rgba(15, 23, 42, 0.95)",
+                border: "1px solid rgba(34, 211, 238, 0.5)",
+                borderRadius: "1.5rem",
+                padding: "2rem",
+                width: "100%",
+                maxWidth: "460px",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.5rem",
+                boxShadow: "0 0 30px rgba(34, 211, 238, 0.2)",
+              }}
+            >
+              <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.5rem" }}>
+                Conectar Sessão ({selectedMode === "duo" ? "Casalzinho" : "Grupinho"})
+              </h2>
+              <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: 0, lineHeight: "1.4" }}>
+                Escaneie o QR Code ou digite o código da sala para sincronizar as notas com o grupo.
+              </p>
+
+              {/* Bloco de QR Code Stylized */}
+              <div style={{ width: "170px", height: "170px", backgroundColor: "#020617", border: "2px solid #22d3ee", borderRadius: "1rem", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                <QrCode style={{ width: "85px", height: "85px", color: "#22d3ee" }} />
+                <span style={{ fontSize: "0.8rem", color: "#22d3ee", fontFamily: "monospace", fontWeight: "bold" }}>CÓDIGO: DISCO80</span>
+              </div>
+
+              {/* Form de Código */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                <div style={{ position: "relative" }}>
+                  <KeyRound style={{ position: "absolute", left: "1rem", top: "0.85rem", width: "1.1rem", height: "1.1rem", color: "#22d3ee" }} />
+                  <input
+                    type="text"
+                    placeholder="DIGITE O CÓDIGO DA SALA"
+                    value={roomCode}
+                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                    style={{
+                      width: "100%",
+                      backgroundColor: "#020617",
+                      border: "1px solid #334155",
+                      borderRadius: "0.75rem",
+                      padding: "0.75rem 1rem 0.75rem 2.75rem",
+                      textAlign: "center",
+                      color: "#fff",
+                      textTransform: "uppercase",
+                      outline: "none",
+                      fontSize: "0.9rem",
+                      letterSpacing: "1px",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+
+                <button
+                  onClick={() => setIsRoomJoined(true)}
+                  style={{
+                    backgroundColor: "#06b6d4",
+                    color: "#020617",
+                    border: "none",
+                    borderRadius: "0.75rem",
+                    padding: "0.9rem",
+                    fontWeight: "bold",
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    boxShadow: "0 0 15px rgba(6, 182, 212, 0.4)",
+                  }}
+                >
+                  ENTRAR NA SESSÃO
+                </button>
+              </div>
+            </div>
+          </div>
+
+        ) : (
+
+          /* ================= 3. ÁREA DE BUSCA, BIBLIOTECA E PÓDIO ================= */
+          <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+            
+            {/* Topbar da Sessão */}
+            <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(236,72,153,0.4)", padding: "1rem 1.25rem", borderRadius: "1.5rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <button
+                  onClick={() => setSelectedMode(null)}
+                  style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.5rem", color: "#ec4899", cursor: "pointer" }}
+                  title="Sair do Modo"
+                >
+                  <ArrowLeft style={{ width: "1.2rem", height: "1.2rem" }} />
+                </button>
+                <div>
+                  <h1 style={{ fontSize: "1.2rem", color: "#ec4899", margin: 0, fontWeight: "bold" }}>DITO & FEITO</h1>
+                  <span style={{ fontSize: "0.75rem", color: "#22d3ee", textTransform: "uppercase", fontWeight: "bold" }}>
                     {selectedMode === "duo" ? "Casalzinho" : selectedMode}
                   </span>
                 </div>
-                <p className="text-slate-400 text-xs mt-0.5">Sessão Ativa</p>
-              </div>
-            </div>
-
-            {/* Abas */}
-            <nav className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 gap-1">
-              {[
-                { id: "busca", label: "Buscar Filmes", icon: Search },
-                { id: "biblioteca", label: "Biblioteca", icon: BookOpen },
-                { id: "podio", label: "Pódio", icon: Trophy },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeView === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveView(tab.id as ViewType)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-                      isActive
-                        ? "bg-pink-600 text-white box-glow-pink"
-                        : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" /> {tab.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </header>
-
-          {/* --- ABA BUSCA: Mídia com Capas Verticais Clicáveis --- */}
-          {activeView === "busca" && (
-            <section className="space-y-6">
-              <div className="relative">
-                <Search className="absolute left-4 top-4 w-5 h-5 text-pink-400 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Digite o nome do filme (ex: Matrix, Pulp Fiction)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-900 border border-pink-500/40 rounded-2xl pl-12 pr-12 py-3.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:box-glow-pink transition-all font-retro text-2xl"
-                />
-                {loading && <Loader2 className="absolute right-4 top-4 w-5 h-5 text-cyan-400 animate-spin" />}
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-400 px-1 font-mono">
-                <span>
-                  {searchQuery.length >= 3
-                    ? `SUGESTÕES PARA "${searchQuery.toUpperCase()}"`
-                    : "FILMES EM ALTA NO MOMENTO"}
-                </span>
-                <span>TOQUE EM UMA CAPA PARA VER E VOTAR</span>
-              </div>
+              {/* Menu de Abas */}
+              <nav style={{ display: "flex", gap: "0.4rem", backgroundColor: "#020617", padding: "0.3rem", borderRadius: "1rem" }}>
+                {[
+                  { id: "busca", label: "Buscar Filmes", icon: Search },
+                  { id: "biblioteca", label: "Biblioteca", icon: BookOpen },
+                  { id: "podio", label: "Pódio", icon: Trophy },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeView === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveView(tab.id as ViewType)}
+                      style={{
+                        backgroundColor: isActive ? "#db2777" : "transparent",
+                        color: "#fff",
+                        border: "none",
+                        padding: "0.5rem 0.85rem",
+                        borderRadius: "0.75rem",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        fontSize: "0.85rem",
+                        fontWeight: "600",
+                      }}
+                    >
+                      <Icon style={{ width: "1rem", height: "1rem" }} /> {tab.label}
+                    </button>
+                  );
+                })}
+              </nav>
+            </header>
 
-              {/* Grade de Capas Verticais Clicáveis */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                {currentDisplayList.map((movie) => (
-                  <div
-                    key={movie.id}
-                    onClick={() => setSelectedMovie(movie)}
-                    className="group bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-pink-500/50 p-3 rounded-2xl flex flex-col justify-between cursor-pointer transition-all card-hover"
-                  >
-                    <div className="space-y-2">
-                      <div className="aspect-[2/3] w-full bg-slate-950 rounded-xl overflow-hidden relative border border-slate-800">
+            {/* --- ABA BUSCA DE FILMES --- */}
+            {activeView === "busca" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                {/* Campo de Busca */}
+                <div style={{ position: "relative", width: "100%" }}>
+                  <Search style={{ position: "absolute", left: "1.2rem", top: "1.1rem", width: "1.2rem", height: "1.2rem", color: "#ec4899" }} />
+                  <input
+                    type="text"
+                    placeholder="Digite o nome do filme (ex: Matrix, Pulp Fiction)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: "100%",
+                      backgroundColor: "rgba(15, 23, 42, 0.9)",
+                      border: "1px solid rgba(236,72,153,0.5)",
+                      borderRadius: "1.25rem",
+                      padding: "1rem 1rem 1rem 3rem",
+                      color: "#fff",
+                      fontSize: "1.1rem",
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                  {loading && <Loader2 style={{ position: "absolute", right: "1.2rem", top: "1.1rem", width: "1.2rem", height: "1.2rem", color: "#22d3ee" }} className="animate-spin" />}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#94a3b8" }}>
+                  <span>{searchQuery.length >= 3 ? `RESULTADOS PARA "${searchQuery.toUpperCase()}"` : "FILMES POPULARES EM ALTA"}</span>
+                  <span>CLIQUE NA CAPA PARA AVALIAR</span>
+                </div>
+
+                {/* Grade Proporcional de Filmes Verticais */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: "1.25rem" }}>
+                  {currentDisplayList.map((movie) => (
+                    <div
+                      key={movie.id}
+                      onClick={() => setSelectedMovie(movie)}
+                      style={{
+                        backgroundColor: "rgba(15, 23, 42, 0.8)",
+                        border: "1px solid #1e293b",
+                        borderRadius: "1rem",
+                        padding: "0.75rem",
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.5rem",
+                        transition: "transform 0.2s, border-color 0.2s",
+                      }}
+                    >
+                      {/* Capa Proporcional 2:3 */}
+                      <div style={{ aspectRatio: "2/3", width: "100%", backgroundColor: "#020617", borderRadius: "0.75rem", overflow: "hidden", position: "relative" }}>
                         {movie.poster_path ? (
                           <img
                             src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
                             alt={movie.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-slate-600">
-                            <Film className="w-8 h-8 mb-1" />
-                            <span className="text-[10px]">Sem Capa</span>
-                          </div>
+                          <Film style={{ width: "2rem", height: "2rem", margin: "auto", color: "#475569" }} />
                         )}
-                        <div className="absolute top-2 right-2 bg-slate-950/80 backdrop-blur-md border border-yellow-500/30 px-2 py-0.5 rounded-lg text-xs text-yellow-400 font-bold flex items-center gap-1">
-                          <Star className="w-3 h-3 fill-yellow-400" />
-                          {movie.vote_average ? movie.vote_average.toFixed(1) : "N/A"}
-                        </div>
+                        <span style={{ position: "absolute", top: "0.4rem", right: "0.4rem", backgroundColor: "rgba(2,6,23,0.85)", border: "1px solid rgba(234,179,8,0.5)", color: "#eab308", fontSize: "0.7rem", fontWeight: "bold", padding: "0.15rem 0.4rem", borderRadius: "0.4rem" }}>
+                          ★ {movie.vote_average ? movie.vote_average.toFixed(1) : "N/A"}
+                        </span>
                       </div>
 
-                      <h3 className="font-bold text-slate-100 text-sm line-clamp-1 group-hover:text-pink-400 transition-colors">
+                      <h3 style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#f8fafc", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {movie.title}
                       </h3>
-                      <p className="text-[11px] text-slate-400 font-mono">
-                        {movie.release_date?.split("-")[0] || "N/A"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* --- ABA BIBLIOTECA --- */}
-          {activeView === "biblioteca" && (
-            <section className="space-y-6">
-              <h2 className="text-xl font-bold text-cyan-400 text-glow-blue">Sua Biblioteca de Filmes</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {evaluatedList.map((item) => (
-                  <div key={item.id} className="bg-slate-900/90 border border-cyan-500/30 p-4 rounded-2xl flex gap-4 box-glow-blue">
-                    <div className="w-20 h-28 bg-slate-950 rounded-xl overflow-hidden flex-shrink-0 border border-slate-800">
-                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <h3 className="font-bold text-slate-100 text-base">{item.title}</h3>
-                      <div className="flex flex-wrap gap-2 text-xs font-mono">
-                        {Object.entries(item.ratings).map(([author, score]) => (
-                          <span key={author} className="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-pink-400 flex items-center gap-1">
-                            {author}: <Star className="w-3 h-3 fill-pink-400" /> {score}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {item.reviews.map((rev) => (
-                          <button
-                            key={rev.author}
-                            onClick={() => setActiveReviewModal(rev)}
-                            className="text-[11px] bg-cyan-500/20 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 border border-cyan-500/40 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1"
-                          >
-                            <MessageSquare className="w-3 h-3" /> Crítica de {rev.author}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* --- ABA PÓDIO --- */}
-          {activeView === "podio" && (
-            <section className="space-y-10">
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-pixel text-yellow-400 text-glow-gold">PÓDIO DA SESSÃO</h2>
-                <p className="text-slate-400 text-xs">Os mais bem avaliados por nota média</p>
-              </div>
-
-              <div className="flex justify-center items-end gap-3 md:gap-6 pt-10 pb-4">
-                {secondPlace && (
-                  <div className="flex flex-col items-center gap-2 w-28 md:w-36">
-                    <div className="w-20 h-28 md:w-24 md:h-36 rounded-2xl overflow-hidden border-2 border-cyan-400 box-glow-blue shadow-xl">
-                      <img src={`https://image.tmdb.org/t/p/w500${secondPlace.poster_path}`} alt={secondPlace.title} className="w-full h-full object-cover" />
-                    </div>
-                    <span className="text-xs font-bold text-cyan-300 line-clamp-1">{secondPlace.title}</span>
-                    <span className="text-xs font-mono text-cyan-400 font-bold">{secondPlace.averageRating} ★</span>
-                    <div className="w-full h-28 bg-gradient-to-t from-cyan-900/60 to-cyan-600/30 border-t-4 border-cyan-400 rounded-t-2xl flex items-center justify-center font-pixel text-2xl text-cyan-300">
-                      2
-                    </div>
-                  </div>
-                )}
-
-                {firstPlace && (
-                  <div className="flex flex-col items-center gap-2 w-32 md:w-44 -mt-8">
-                    <Crown className="w-10 h-10 text-yellow-400 text-glow-gold animate-bounce" />
-                    <div className="w-24 h-36 md:w-32 md:h-44 rounded-2xl overflow-hidden border-4 border-yellow-400 box-glow-gold shadow-2xl">
-                      <img src={`https://image.tmdb.org/t/p/w500${firstPlace.poster_path}`} alt={firstPlace.title} className="w-full h-full object-cover" />
-                    </div>
-                    <span className="text-sm font-bold text-yellow-300 line-clamp-1">{firstPlace.title}</span>
-                    <span className="text-sm font-mono text-yellow-400 font-bold">{firstPlace.averageRating} ★</span>
-                    <div className="w-full h-36 bg-gradient-to-t from-yellow-900/60 to-yellow-500/40 border-t-4 border-yellow-400 rounded-t-2xl flex items-center justify-center font-pixel text-4xl text-yellow-300">
-                      1
-                    </div>
-                  </div>
-                )}
-
-                {thirdPlace && (
-                  <div className="flex flex-col items-center gap-2 w-28 md:w-36">
-                    <div className="w-20 h-28 md:w-24 md:h-36 rounded-2xl overflow-hidden border-2 border-pink-500 box-glow-pink shadow-xl">
-                      <img src={`https://image.tmdb.org/t/p/w500${thirdPlace.poster_path}`} alt={thirdPlace.title} className="w-full h-full object-cover" />
-                    </div>
-                    <span className="text-xs font-bold text-pink-300 line-clamp-1">{thirdPlace.title}</span>
-                    <span className="text-xs font-mono text-pink-400 font-bold">{thirdPlace.averageRating} ★</span>
-                    <div className="w-full h-20 bg-gradient-to-t from-pink-900/60 to-pink-600/30 border-t-4 border-pink-500 rounded-t-2xl flex items-center justify-center font-pixel text-2xl text-pink-300">
-                      3
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {restOfPodium.length > 0 && (
-                <div className="space-y-2 pt-4">
-                  <h3 className="text-xs font-mono text-slate-400 uppercase">Demais Colocações:</h3>
-                  {restOfPodium.map((item, idx) => (
-                    <div key={item.id} className="bg-slate-900/80 border border-slate-800 p-3 rounded-2xl flex items-center justify-between font-mono text-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="text-pink-400 font-bold">#{idx + 4}</span>
-                        <span className="text-slate-200 font-sans font-semibold">{item.title}</span>
-                      </div>
-                      <span className="text-yellow-400 font-bold">{item.averageRating} ★</span>
+                      <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                        {movie.release_date?.split("-")[0] || "Ano N/A"}
+                      </span>
                     </div>
                   ))}
                 </div>
-              )}
-            </section>
-          )}
-        </div>
-      )}
-
-      {/* --- MODAL DO FILME ESCOLHIDO (INFORMAÇÕES + SINOPSE + AVALIAÇÃO COM ESTRELAS) --- */}
-      {selectedMovie && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="relative w-full max-w-xl bg-slate-900 border border-pink-500/40 rounded-3xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setSelectedMovie(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-full bg-slate-800"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Cabeçalho do Modal: Pôster + Título + Sinopse + Nota TMDB */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start border-b border-slate-800 pb-4">
-              <div className="w-28 h-40 bg-slate-950 rounded-xl overflow-hidden flex-shrink-0 border border-slate-800 mx-auto sm:mx-0">
-                {selectedMovie.poster_path ? (
-                  <img
-                    src={`https://image.tmdb.org/t/p/w500${selectedMovie.poster_path}`}
-                    alt={selectedMovie.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Film className="w-8 h-8 text-slate-700 m-auto mt-14" />
-                )}
               </div>
-              <div className="space-y-2 text-center sm:text-left">
-                <h3 className="font-bold text-slate-100 text-xl">{selectedMovie.title}</h3>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs font-mono text-slate-400">
-                  <span>{selectedMovie.release_date?.split("-")[0] || "Ano N/A"}</span>
-                  <span className="flex items-center gap-1 text-yellow-400 font-bold">
-                    <Star className="w-3.5 h-3.5 fill-yellow-400" />
-                    TMDB: {selectedMovie.vote_average ? selectedMovie.vote_average.toFixed(1) : "N/A"} / 10
-                  </span>
+            )}
+
+            {/* --- ABA BIBLIOTECA --- */}
+            {activeView === "biblioteca" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.4rem" }}>Biblioteca de Filmes Avaliados</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem" }}>
+                  {evaluatedList.map((item) => (
+                    <div key={item.id} style={{ backgroundColor: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(34, 211, 238, 0.3)", padding: "1rem", borderRadius: "1.25rem", display: "flex", gap: "1rem" }}>
+                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} style={{ width: "75px", height: "110px", borderRadius: "0.6rem", objectFit: "cover" }} />
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
+                        <h3 style={{ margin: 0, fontSize: "1rem", color: "#fff" }}>{item.title}</h3>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                          {Object.entries(item.ratings).map(([author, score]) => (
+                            <span key={author} style={{ backgroundColor: "#020617", padding: "0.25rem 0.5rem", borderRadius: "0.5rem", fontSize: "0.75rem", color: "#ec4899", border: "1px solid #1e293b" }}>
+                              {author}: {score} ★
+                            </span>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "auto" }}>
+                          {item.reviews.map((rev) => (
+                            <button
+                              key={rev.author}
+                              onClick={() => setActiveReviewModal(rev)}
+                              style={{ backgroundColor: "rgba(34,211,238,0.15)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.4)", borderRadius: "0.5rem", padding: "0.2rem 0.5rem", fontSize: "0.7rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.2rem" }}
+                            >
+                              <MessageSquare style={{ width: "0.7rem", height: "0.7rem" }} /> Crítica de {rev.author}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-slate-300 text-xs leading-relaxed line-clamp-4">
-                  {selectedMovie.overview || "Sem sinopse cadastrada."}
-                </p>
               </div>
-            </div>
+            )}
 
-            {/* Votação do Usuário Principal */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-xs font-bold text-pink-400">
-                <span>Nota de {userName}:</span>
-                <span className="text-base font-mono">{rating} / 10 ★</span>
-              </div>
-              <div className="flex gap-1 justify-between">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => handleStarClick(star, rating, setRating)}
-                    className="p-1 focus:outline-none transition-transform hover:scale-125"
-                  >
-                    <Star
-                      className={`w-5 h-5 ${
-                        rating >= star
-                          ? "fill-pink-500 text-pink-500"
-                          : rating >= star - 0.5
-                          ? "fill-pink-500/50 text-pink-500"
-                          : "text-slate-700"
-                      }`}
-                    />
-                  </button>
-                ))}
-              </div>
-              <textarea
-                rows={2}
-                placeholder={`Resenha/crítica de ${userName} (Opcional)...`}
-                value={reviewText}
-                onChange={(e) => setReviewText(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-pink-500"
-              />
-            </div>
-
-            {/* Segunda Votação (Casalzinho / Grupinho) */}
-            {(selectedMode === "duo" || selectedMode === "grupo") && (
-              <div className="space-y-2 pt-2 border-t border-slate-800">
-                <div className="flex justify-between items-center text-xs font-bold text-cyan-400">
-                  <span>Nota de {partnerName}:</span>
-                  <span className="text-base font-mono">{partnerRating} / 10 ★</span>
+            {/* --- ABA PÓDIO --- */}
+            {activeView === "podio" && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2.5rem", textAlign: "center" }}>
+                <div>
+                  <h2 style={{ color: "#eab308", fontSize: "1.8rem", margin: 0, fontWeight: "bold" }}>PÓDIO DA SESSÃO</h2>
+                  <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "0.25rem" }}>Classificação baseada na nota média</p>
                 </div>
-                <div className="flex gap-1 justify-between">
+
+                <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", justifyContent: "center", width: "100%", maxWidth: "600px" }}>
+                  {/* 2º Lugar */}
+                  {secondPlace && (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                      <div style={{ width: "90px", height: "135px", borderRadius: "0.75rem", overflow: "hidden", border: "2px solid #22d3ee" }}>
+                        <img src={`https://image.tmdb.org/t/p/w500${secondPlace.poster_path}`} alt={secondPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
+                      <span style={{ fontSize: "0.85rem", color: "#22d3ee", fontWeight: "bold", marginTop: "0.5rem" }}>{secondPlace.averageRating} ★</span>
+                      <div style={{ width: "100%", height: "100px", backgroundColor: "rgba(6,182,212,0.2)", borderTop: "3px solid #22d3ee", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem", fontWeight: "bold", color: "#22d3ee" }}>2</div>
+                    </div>
+                  )}
+
+                  {/* 1º Lugar */}
+                  {firstPlace && (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, marginTop: "-2rem" }}>
+                      <Crown style={{ width: "2.5rem", height: "2.5rem", color: "#eab308", marginBottom: "0.25rem" }} />
+                      <div style={{ width: "110px", height: "165px", borderRadius: "0.75rem", overflow: "hidden", border: "3px solid #eab308", boxShadow: "0 0 25px rgba(234,179,8,0.4)" }}>
+                        <img src={`https://image.tmdb.org/t/p/w500${firstPlace.poster_path}`} alt={firstPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
+                      <span style={{ fontSize: "1rem", color: "#eab308", fontWeight: "bold", marginTop: "0.5rem" }}>{firstPlace.averageRating} ★</span>
+                      <div style={{ width: "100%", height: "140px", backgroundColor: "rgba(234,179,8,0.25)", borderTop: "4px solid #eab308", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", fontWeight: "bold", color: "#eab308" }}>1</div>
+                    </div>
+                  )}
+
+                  {/* 3º Lugar */}
+                  {thirdPlace && (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                      <div style={{ width: "90px", height: "135px", borderRadius: "0.75rem", overflow: "hidden", border: "2px solid #ec4899" }}>
+                        <img src={`https://image.tmdb.org/t/p/w500${thirdPlace.poster_path}`} alt={thirdPlace.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
+                      <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold", marginTop: "0.5rem" }}>{thirdPlace.averageRating} ★</span>
+                      <div style={{ width: "100%", height: "80px", backgroundColor: "rgba(236,72,153,0.2)", borderTop: "3px solid #ec4899", borderRadius: "0.75rem 0.75rem 0 0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.8rem", fontWeight: "bold", color: "#ec4899" }}>3</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= MODAL DE AVALIAÇÃO DO FILME ================= */}
+        {selectedMovie && (
+          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(2,6,23,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 100 }}>
+            <div style={{ backgroundColor: "#0f172a", border: "1px solid rgba(236,72,153,0.5)", borderRadius: "1.5rem", padding: "1.5rem", maxWidth: "520px", width: "100%", display: "flex", flexDirection: "column", gap: "1.25rem", position: "relative", boxSizing: "border-box" }}>
+              
+              <button onClick={() => setSelectedMovie(null)} style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
+                <X style={{ width: "1.25rem", height: "1.25rem" }} />
+              </button>
+
+              {/* Header do Filme */}
+              <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+                <img src={`https://image.tmdb.org/t/p/w500${selectedMovie.poster_path}`} alt={selectedMovie.title} style={{ width: "90px", height: "135px", borderRadius: "0.6rem", objectFit: "cover" }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", flex: 1 }}>
+                  <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#fff" }}>{selectedMovie.title}</h3>
+                  <span style={{ fontSize: "0.75rem", color: "#eab308", fontWeight: "bold" }}>TMDB: {selectedMovie.vote_average?.toFixed(1)} / 10 ★</span>
+                  <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: 0, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: "1.3" }}>
+                    {selectedMovie.overview || "Sem sinopse."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Votação Principal */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold" }}>Nota de {userName}: {rating} / 10 ★</span>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => handleStarClick(star, partnerRating, setPartnerRating)}
-                      className="p-1 focus:outline-none transition-transform hover:scale-125"
-                    >
-                      <Star
-                        className={`w-5 h-5 ${
-                          partnerRating >= star
-                            ? "fill-cyan-400 text-cyan-400"
-                            : partnerRating >= star - 0.5
-                            ? "fill-cyan-400/50 text-cyan-400"
-                            : "text-slate-700"
-                        }`}
-                      />
+                    <button key={star} onClick={() => handleStarClick(star, rating, setRating)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                      <Star style={{ width: "1.2rem", height: "1.2rem", color: rating >= star ? "#ec4899" : "#334155", fill: rating >= star ? "#ec4899" : "none" }} />
                     </button>
                   ))}
                 </div>
                 <textarea
-                  rows={2}
-                  placeholder={`Resenha/crítica de ${partnerName} (Opcional)...`}
-                  value={partnerReviewText}
-                  onChange={(e) => setPartnerReviewText(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
+                  placeholder={`Sua crítica/resenha (opcional)...`}
+                  value={reviewText}
+                  onChange={(e) => setReviewText(e.target.value)}
+                  style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem", color: "#fff", fontSize: "0.85rem", outline: "none", resize: "none" }}
                 />
               </div>
-            )}
 
-            <button
-              onClick={handleSaveEvaluation}
-              className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs py-3.5 rounded-xl transition-all shadow-lg"
-            >
-              ENVIAR AVALIAÇÃO
-            </button>
-          </div>
-        </div>
-      )}
+              {/* Votação Dupla (Casalzinho / Grupinho) */}
+              {(selectedMode === "duo" || selectedMode === "grupo") && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", borderTop: "1px solid #1e293b", paddingTop: "0.75rem" }}>
+                  <span style={{ fontSize: "0.85rem", color: "#22d3ee", fontWeight: "bold" }}>Nota de {partnerName}: {partnerRating} / 10 ★</span>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
+                      <button key={star} onClick={() => handleStarClick(star, partnerRating, setPartnerRating)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                        <Star style={{ width: "1.2rem", height: "1.2rem", color: partnerRating >= star ? "#22d3ee" : "#334155", fill: partnerRating >= star ? "#22d3ee" : "none" }} />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder={`Crítica/resenha de ${partnerName} (opcional)...`}
+                    value={partnerReviewText}
+                    onChange={(e) => setPartnerReviewText(e.target.value)}
+                    style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem", color: "#fff", fontSize: "0.85rem", outline: "none", resize: "none" }}
+                  />
+                </div>
+              )}
 
-      {/* --- MODAL PARA LER CRÍTICA --- */}
-      {activeReviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md bg-slate-900 border border-cyan-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
-            <button onClick={() => setActiveReviewModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="font-bold text-cyan-400 text-sm flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" /> Crítica por {activeReviewModal.author}
-            </h3>
-            <p className="text-slate-200 text-xs leading-relaxed italic bg-slate-950 p-4 rounded-xl border border-slate-800">
-              "{activeReviewModal.text}"
-            </p>
+              <button onClick={handleSaveEvaluation} style={{ backgroundColor: "#db2777", color: "#fff", border: "none", borderRadius: "0.75rem", padding: "0.85rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.9rem" }}>
+                ENVIAR AVALIAÇÃO
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* MODAL DE CRÍTICA */}
+        {activeReviewModal && (
+          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(2,6,23,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 100 }}>
+            <div style={{ backgroundColor: "#0f172a", border: "1px solid #22d3ee", borderRadius: "1.5rem", padding: "1.5rem", maxWidth: "400px", width: "100%", display: "flex", flexDirection: "column", gap: "1rem", position: "relative" }}>
+              <button onClick={() => setActiveReviewModal(null)} style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
+                <X style={{ width: "1.25rem", height: "1.25rem" }} />
+              </button>
+              <h3 style={{ margin: 0, color: "#22d3ee", fontSize: "1rem" }}>Crítica de {activeReviewModal.author}</h3>
+              <p style={{ backgroundColor: "#020617", padding: "1rem", borderRadius: "0.75rem", border: "1px solid #1e293b", fontSize: "0.85rem", color: "#cbd5e1", fontStyle: "italic", margin: 0 }}>
+                "{activeReviewModal.text}"
+              </p>
+            </div>
+          </div>
+        )}
+
+      </div>
     </main>
   );
 }
