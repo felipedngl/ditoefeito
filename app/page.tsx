@@ -20,6 +20,7 @@ import {
   Trash2,
   Share2,
   LogOut,
+  Mail,
 } from "lucide-react";
 
 const TMDB_API_KEY = "f387a8d39e74287934d786c1f2c2fe57";
@@ -67,9 +68,7 @@ const PET_AVATARS = [
 
 export default function Home() {
   const [authState, setAuthState] = useState<AuthState>("login");
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-
+  const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState(PET_AVATARS[0]);
   const [selectedMode, setSelectedMode] = useState<ModeType>(null);
@@ -94,52 +93,81 @@ export default function Home() {
 
   const [evaluatedList, setEvaluatedList] = useState<EvaluatedItem[]>([]);
 
+  // Carregamento inicial via Google Session Storage / LocalStorage por conta e URL param
   useEffect(() => {
-    const savedUser = localStorage.getItem("ditoefeito_logged_user");
-    if (savedUser) {
-      setUserName(savedUser);
-      setAuthState("modes");
-    }
-    const savedAvatar = localStorage.getItem("ditoefeito_avatar");
-    if (savedAvatar) setUserAvatar(savedAvatar);
+    const params = new URLSearchParams(window.location.search);
+    const profileParam = params.get("perfil");
 
-    const savedData = localStorage.getItem("ditoefeito_evaluations");
+    if (profileParam) {
+      setUserName(profileParam);
+      setUserEmail(`${profileParam.toLowerCase()}@user.com`);
+      setAuthState("app");
+      const cloudData = localStorage.getItem(`db_evaluations_${profileParam.toUpperCase()}`);
+      if (cloudData) {
+        try { setEvaluatedList(JSON.parse(cloudData)); } catch (e) { console.error(e); }
+      }
+      return;
+    }
+
+    const savedEmail = localStorage.getItem("google_auth_email");
+    const savedName = localStorage.getItem("google_auth_name");
+    const savedAvatar = localStorage.getItem("google_auth_avatar");
+
+    if (savedEmail && savedName) {
+      setUserEmail(savedEmail);
+      setUserName(savedName);
+      if (savedAvatar) setUserAvatar(savedAvatar);
+      setAuthState("modes");
+
+      const userDbKey = `db_evaluations_${savedEmail}`;
+      const savedData = localStorage.getItem(userDbKey);
+      if (savedData) {
+        try { setEvaluatedList(JSON.parse(savedData)); } catch (e) { console.error(e); }
+      }
+    }
+  }, []);
+
+  // Salvar dados específicos do usuário logado na nuvem simulada/localStorage por ID de conta
+  useEffect(() => {
+    if (userEmail) {
+      const userDbKey = `db_evaluations_${userEmail}`;
+      localStorage.setItem(userDbKey, JSON.stringify(evaluatedList));
+    }
+    localStorage.setItem("google_auth_avatar", userAvatar);
+  }, [evaluatedList, userAvatar, userEmail]);
+
+  // Simulação de Login com Google OAuth
+  const handleGoogleLogin = () => {
+    // Simula autenticação Google rápida e interativa para testes
+    const mockEmail = prompt("Simulando Login com Google. Digite seu e-mail:", "dissa@gmail.com");
+    if (!mockEmail) return;
+
+    const namePart = mockEmail.split("@")[0].toUpperCase();
+    setUserEmail(mockEmail);
+    setUserName(namePart);
+
+    localStorage.setItem("google_auth_email", mockEmail);
+    localStorage.setItem("google_auth_name", namePart);
+
+    // Carregar dados salvos desta conta específica se houver
+    const userDbKey = `db_evaluations_${mockEmail}`;
+    const savedData = localStorage.getItem(userDbKey);
     if (savedData) {
       try { setEvaluatedList(JSON.parse(savedData)); } catch (e) { console.error(e); }
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const profileParam = params.get("perfil");
-    if (profileParam) {
-      setUserName(profileParam);
-      setAuthState("app");
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("ditoefeito_evaluations", JSON.stringify(evaluatedList));
-  }, [evaluatedList]);
-
-  useEffect(() => {
-    localStorage.setItem("ditoefeito_avatar", userAvatar);
-  }, [userAvatar]);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginEmail.trim()) {
-      alert("Por favor, digite seu e-mail ou apelido.");
-      return;
-    }
-    const cleanName = loginEmail.split("@")[0].toUpperCase();
-    setUserName(cleanName);
-    localStorage.setItem("ditoefeito_logged_user", cleanName);
     setAuthState("modes");
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("ditoefeito_logged_user");
+    localStorage.removeItem("google_auth_email");
+    localStorage.removeItem("google_auth_name");
+    localStorage.removeItem("google_auth_avatar");
+    setUserEmail("");
+    setUserName("");
     setAuthState("login");
     setSelectedMode(null);
+    window.history.replaceState({}, "", window.location.pathname);
   };
 
   const handleGenerateRandomCode = () => {
@@ -252,20 +280,21 @@ export default function Home() {
   const currentUser = userName.trim() || "Usuário";
   const userPersonalEvaluations = evaluatedList.filter(item => item.ratings[currentUser] !== undefined);
 
+  // Link Individual e Compartilhamento de Perfil
   const handleShareProfileLink = () => {
     const profileUrl = `${window.location.origin}?perfil=${encodeURIComponent(userName)}`;
     if (navigator.share) {
-      navigator.share({ title: `Perfil de ${userName} - Avaliações`, text: `Veja as avaliações de filmes e séries de ${userName}!`, url: profileUrl }).catch(() => {});
+      navigator.share({ title: `Perfil de ${userName}`, text: `Veja as avaliações de filmes e séries de ${userName}!`, url: profileUrl }).catch(() => {});
     } else {
       navigator.clipboard.writeText(profileUrl);
-      alert(`Link do perfil de ${userName} copiado para a área de transferência!\n\n${profileUrl}`);
+      alert(`Link do perfil copiado!\n\n${profileUrl}`);
     }
   };
 
   return (
     <main style={{ minHeight: "100vh", backgroundColor: "#060913", color: "#f8fafc", padding: "2rem 1rem", fontFamily: "sans-serif", position: "relative", overflowX: "hidden" }}>
       
-{/* Fundo Cósmico / Universo (Milky Way Style) */}
+      {/* Fundo Cósmico / Universo (Milky Way Style) */}
       <style>{`
         .universe-bg {
           position: fixed;
@@ -316,52 +345,34 @@ export default function Home() {
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", position: "relative", zIndex: 10 }}>
         
-        {/* TELA DE LOGIN INICIAL */}
+        {/* MODAL / TELA DE LOGIN INICIAL COM GOOGLE */}
         {authState === "login" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2rem" }}>
-            <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "2.5rem 2rem", width: "100%", maxWidth: "420px", textAlign: "center", display: "flex", flexDirection: "column", gap: "1.5rem", boxShadow: "0 0 35px rgba(236, 72, 153, 0.25)" }}>
+            <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "3rem 2rem", width: "100%", maxWidth: "420px", textAlign: "center", display: "flex", flexDirection: "column", gap: "1.75rem", boxShadow: "0 0 40px rgba(236, 72, 153, 0.3)" }}>
               
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
                 <img
                   src="/logo.png"
                   alt="Logo"
-                  style={{ width: "90px", height: "90px", objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(236,72,153,0.5))" }}
+                  style={{ width: "100px", height: "100px", objectFit: "contain", filter: "drop-shadow(0 0 12px rgba(236,72,153,0.6))" }}
                   onError={(e) => ((e.target as HTMLElement).style.display = "none")}
                 />
-                <h1 style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#ec4899", margin: 0 }}>ENTRAR NO SISTEMA</h1>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Insira seu e-mail ou apelido para carregar seu histórico</p>
+                <h2 style={{ fontSize: "1.6rem", fontWeight: "bold", color: "#fff", margin: 0 }}>Bem-vindo(a)</h2>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Faça login para sincronizar seu perfil e avaliações na nuvem.</p>
               </div>
 
-              <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem", textAlign: "left" }}>
-                <div>
-                  <label style={{ fontSize: "0.75rem", color: "#22d3ee", fontWeight: "bold", display: "block", marginBottom: "0.4rem" }}>E-mail ou Apelido:</label>
-                  <input
-                    type="text"
-                    placeholder="ex: nome@email.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.85rem", color: "#fff", outline: "none", fontSize: "0.9rem", boxSizing: "border-box" }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: "0.75rem", color: "#22d3ee", fontWeight: "bold", display: "block", marginBottom: "0.4rem" }}>Senha:</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.85rem", color: "#fff", outline: "none", fontSize: "0.9rem", boxSizing: "border-box" }}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  style={{ backgroundColor: "#db2777", color: "#fff", border: "none", borderRadius: "0.75rem", padding: "0.9rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", marginTop: "0.5rem", boxShadow: "0 0 15px rgba(219,39,119,0.4)" }}
-                >
-                  ACESSAR MINHA CONTA
-                </button>
-              </form>
+              <button
+                onClick={handleGoogleLogin}
+                style={{ backgroundColor: "#ffffff", color: "#0f172a", border: "none", borderRadius: "0.85rem", padding: "0.95rem 1.25rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", boxShadow: "0 4px 15px rgba(255,255,255,0.2)", transition: "transform 0.2s" }}
+              >
+                <svg style={{ width: "1.2rem", height: "1.2rem" }} viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.19v3.15C3.17 21.32 7.22 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.19C.43 8.1 0 9.8 0 12s.43 3.9 1.19 5.42l4.09-3.15z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.22 0 3.17 2.68 1.19 6.58l4.09 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                </svg>
+                Continuar com o Google
+              </button>
             </div>
           </div>
         )}
@@ -373,10 +384,10 @@ export default function Home() {
             <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center", maxWidth: "800px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <img src={userAvatar} alt="Avatar" style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover", border: "2px solid #ec4899" }} />
-                <span style={{ fontSize: "1rem", color: "#fff", fontWeight: "bold" }}>Olá, {userName}</span>
+                <span style={{ fontSize: "1rem", color: "#fff", fontWeight: "bold" }}>{userName}</span>
               </div>
               <button onClick={handleLogout} style={{ background: "none", border: "1px solid #334155", color: "#94a3b8", padding: "0.5rem 1rem", borderRadius: "0.75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem" }}>
-                <LogOut style={{ width: "1rem", height: "1rem" }} /> Sair
+                <LogOut style={{ width: "1rem", height: "1rem" }} /> Sair da Conta
               </button>
             </div>
 
@@ -385,7 +396,7 @@ export default function Home() {
                 {userName}
               </h1>
               <p style={{ color: "#22d3ee", fontSize: "1rem", margin: 0, letterSpacing: "2px", fontWeight: "600" }}>
-                AVALIAÇÕES DE FILMES E SÉRIES
+                ESCOLHA O MODO DE AVALIAÇÃO
               </p>
             </div>
 
@@ -405,7 +416,7 @@ export default function Home() {
               >
                 <Heart style={{ width: "2.25rem", height: "2.25rem", color: "#22d3ee" }} />
                 <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#22d3ee", margin: 0 }}>Casalzinho</h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação conjunta, com a nota conjunta</p>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação conjunta.</p>
               </button>
 
               <button
@@ -414,13 +425,13 @@ export default function Home() {
               >
                 <Users style={{ width: "2.25rem", height: "2.25rem", color: "#eab308" }} />
                 <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#eab308", margin: 0 }}>Grupinho</h3>
-                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação de 3 a 10 amigos juntos.</p>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação em grupo.</p>
               </button>
             </div>
           </div>
         ) : authState === "modes" && selectedMode && selectedMode !== "solo" && !customRoomCode ? (
 
-          /* TELA DE CONFIGURAÇÃO DE SALA (CASAL / GRUPO) */
+          /* TELA DE CONFIGURAÇÃO DE SALA */
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "75vh", justifyContent: "center", gap: "1.5rem" }}>
             <button onClick={() => setSelectedMode(null)} style={{ background: "none", border: "none", color: "#ec4899", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
               <ArrowLeft style={{ width: "1.1rem", height: "1.1rem" }} /> Voltar
@@ -684,7 +695,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* ABA PERFIL */}
+            {/* ABA PERFIL (BICHINHOS + LINK DE COMPARTILHAMENTO) */}
             {activeView === "perfil" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
                 
@@ -692,7 +703,7 @@ export default function Home() {
                   <img src={userAvatar} alt="Avatar Pet" style={{ width: "100px", height: "100px", borderRadius: "50%", objectFit: "cover", border: "3px solid #ec4899", boxShadow: "0 0 15px rgba(236,72,153,0.4)" }} />
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%", maxWidth: "300px" }}>
-                    <label style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "bold" }}>Seu Apelido / Nome:</label>
+                    <label style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "bold" }}>Seu Nome / Apelido:</label>
                     <input
                       type="text"
                       value={userName}
