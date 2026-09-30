@@ -335,6 +335,7 @@ export default function Home() {
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", position: "relative", zIndex: 10 }}>
         
+        {/* TELA DE LOGIN */}
         {authState === "login" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2rem" }}>
             <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "3rem 2rem", width: "100%", maxWidth: "420px", textAlign: "center", display: "flex", flexDirection: "column", gap: "1.75rem", boxShadow: "0 0 40px rgba(236, 72, 153, 0.3)" }}>
@@ -352,7 +353,7 @@ export default function Home() {
 
               <button
                 onClick={handleGoogleLogin}
-                style={{ backgroundColor: "#ffffff", color: "#0f172a", border: "none", borderRadius: "0.85rem", padding: "0.95rem 1.25rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", boxShadow: "0 4px 15px rgba(255,255,255,0.2)" }}
+                style={{ backgroundColor: "#ffffff", color: "#0f172a", border: "none", borderRadius: "0.85rem", padding: "0.95rem 1.25rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem" }}
               >
                 <svg style={{ width: "1.2rem", height: "1.2rem" }} viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
@@ -366,6 +367,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* TELA DE MODOS */}
         {authState === "modes" && !selectedMode && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2.5rem", textAlign: "center" }}>
             
@@ -417,8 +419,10 @@ export default function Home() {
               </button>
             </div>
           </div>
-        ) : authState === "modes" && selectedMode && selectedMode !== "solo" && !customRoomCode ? (
+        )}
 
+        {/* TELA DE CONFIGURAÇÃO DE SALA */}
+        {authState === "modes" && selectedMode && selectedMode !== "solo" && !customRoomCode && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "75vh", justifyContent: "center", gap: "1.5rem" }}>
             <button onClick={() => setSelectedMode(null)} style={{ background: "none", border: "none", color: "#ec4899", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
               <ArrowLeft style={{ width: "1.1rem", height: "1.1rem" }} /> Voltar
@@ -457,13 +461,15 @@ export default function Home() {
               </button>
             </div>
           </div>
-        ) : (
+        )}
 
+        {/* APLICATIVO PRINCIPAL */}
+        {(authState === "app" || (authState === "modes" && selectedMode === "solo") || (authState === "modes" && selectedMode && customRoomCode)) && (
           <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
             
             <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236,72,153,0.4)", padding: "1rem 1.25rem", borderRadius: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <button onClick={() => { setAuthState("modes"); setSelectedMode(null); }} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.5rem", color: "#ec4899", cursor: "pointer" }}>
+                <button onClick={() => { setAuthState("modes"); setSelectedMode(null); setCustomRoomCode(""); }} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.5rem", color: "#ec4899", cursor: "pointer" }}>
                   <ArrowLeft style={{ width: "1.2rem", height: "1.2rem" }} />
                 </button>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -744,6 +750,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* MODAL DE AVALIAÇÃO */}
         {selectedMedia && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(2,6,23,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 100 }}>
             <div style={{ backgroundColor: "#0f172a", border: "1px solid rgba(236,72,153,0.5)", borderRadius: "1.5rem", padding: "1.5rem", maxWidth: "520px", width: "100%", display: "flex", flexDirection: "column", gap: "1.25rem", position: "relative" }}>
