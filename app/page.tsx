@@ -284,69 +284,17 @@ export default function Home() {
   return (
     <main style={{ minHeight: "100vh", backgroundColor: "#060913", color: "#f8fafc", padding: "2rem 1rem", fontFamily: "sans-serif", position: "relative", overflowX: "hidden" }}>
       
-      {/* Fundo Cósmico / Universo (Milky Way Style) */}
-      <style>{`
-        .universe-bg {
-          position: fixed;
-          inset: 0;
-          z-index: 0;
-          pointer-events: none;
-          background: radial-gradient(circle at 50% 50%, #0b0f19 0%, #030712 100%);
-          overflow: hidden;
-        }
-        .stars-layer {
-          position: absolute;
-          inset: -50%;
-          background-image: 
-            radial-gradient(1px 1px at 20px 30px, #ffffff, rgba(0,0,0,0)),
-            radial-gradient(1.5px 1.5px at 40px 70px, #22d3ee, rgba(0,0,0,0)),
-            radial-gradient(1px 1px at 90px 40px, #ec4899, rgba(0,0,0,0)),
-            radial-gradient(2px 2px at 160px 120px, #ffffff, rgba(0,0,0,0));
-          background-repeat: repeat;
-          background-size: 200px 200px;
-          animation: universe-drift 60s linear infinite;
-          opacity: 0.6;
-        }
-        .nebula-glow {
-          position: absolute;
-          width: 600px;
-          height: 600px;
-          background: radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(34, 211, 238, 0.05) 50%, transparent 80%);
-          top: 20%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          filter: blur(80px);
-          animation: nebula-pulse 10s ease-in-out infinite alternate;
-        }
-        @keyframes universe-drift {
-          0% { transform: translateY(0) rotate(0deg); }
-          100% { transform: translateY(-200px) rotate(360deg); }
-        }
-        @keyframes nebula-pulse {
-          0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
-          100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
-        }
-      `}</style>
-
-      <div className="universe-bg">
-        <div className="nebula-glow" />
-        <div className="stars-layer" />
+      {/* Fundo Cósmico Estável */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", background: "radial-gradient(circle at 50% 50%, #0b0f19 0%, #030712 100%)", overflow: "hidden" }}>
+        <div style={{ position: "absolute", width: "600px", height: "600px", background: "radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(34, 211, 238, 0.05) 50%, transparent 80%)", top: "20%", left: "50%", transform: "translate(-50%, -50%)", filter: "blur(80px)" }} />
       </div>
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", position: "relative", zIndex: 10 }}>
         
-        {/* TELA DE LOGIN */}
         {authState === "login" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2rem" }}>
             <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "3rem 2rem", width: "100%", maxWidth: "420px", textAlign: "center", display: "flex", flexDirection: "column", gap: "1.75rem", boxShadow: "0 0 40px rgba(236, 72, 153, 0.3)" }}>
-              
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-                <img
-                  src="/logo.png"
-                  alt="Logo"
-                  style={{ width: "100px", height: "100px", objectFit: "contain", filter: "drop-shadow(0 0 12px rgba(236,72,153,0.6))" }}
-                  onError={(e) => ((e.target as HTMLElement).style.display = "none")}
-                />
                 <h2 style={{ fontSize: "1.6rem", fontWeight: "bold", color: "#fff", margin: 0 }}>Bem-vindo(a)</h2>
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Faça login para sincronizar seu perfil e avaliações na nuvem.</p>
               </div>
@@ -367,10 +315,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* TELA DE MODOS */}
         {authState === "modes" && !selectedMode && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2.5rem", textAlign: "center" }}>
-            
             <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center", maxWidth: "800px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <img src={userAvatar} alt="Avatar" style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover", border: "2px solid #ec4899" }} />
@@ -382,37 +328,24 @@ export default function Home() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
-              <h1 style={{ fontSize: "2.5rem", fontWeight: "bold", color: "#ec4899", margin: 0, textTransform: "uppercase" }}>
-                {userName}
-              </h1>
-              <p style={{ color: "#22d3ee", fontSize: "1rem", margin: 0, letterSpacing: "2px", fontWeight: "600" }}>
-                ESCOLHA O MODO DE AVALIAÇÃO
-              </p>
+              <h1 style={{ fontSize: "2.5rem", fontWeight: "bold", color: "#ec4899", margin: 0, textTransform: "uppercase" }}>{userName}</h1>
+              <p style={{ color: "#22d3ee", fontSize: "1rem", margin: 0, letterSpacing: "2px", fontWeight: "600" }}>ESCOLHA O MODO DE AVALIAÇÃO</p>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem", width: "100%" }}>
-              <button
-                onClick={() => setSelectedMode("solo")}
-                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
-              >
+              <button onClick={() => setSelectedMode("solo")} style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
                 <User style={{ width: "2.25rem", height: "2.25rem", color: "#ec4899" }} />
                 <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#ec4899", margin: 0 }}>Solo</h3>
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliações individuais.</p>
               </button>
 
-              <button
-                onClick={() => setSelectedMode("duo")}
-                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(34, 211, 238, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
-              >
+              <button onClick={() => setSelectedMode("duo")} style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(34, 211, 238, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
                 <Heart style={{ width: "2.25rem", height: "2.25rem", color: "#22d3ee" }} />
                 <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#22d3ee", margin: 0 }}>Casalzinho</h3>
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação conjunta.</p>
               </button>
 
-              <button
-                onClick={() => setSelectedMode("grupo")}
-                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(234, 179, 8, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
-              >
+              <button onClick={() => setSelectedMode("grupo")} style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(234, 179, 8, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
                 <Users style={{ width: "2.25rem", height: "2.25rem", color: "#eab308" }} />
                 <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#eab308", margin: 0 }}>Grupinho</h3>
                 <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Avaliação em grupo.</p>
@@ -421,7 +354,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* TELA DE CONFIGURAÇÃO DE SALA */}
         {authState === "modes" && selectedMode && selectedMode !== "solo" && !customRoomCode && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "75vh", justifyContent: "center", gap: "1.5rem" }}>
             <button onClick={() => setSelectedMode(null)} style={{ background: "none", border: "none", color: "#ec4899", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
@@ -450,20 +382,13 @@ export default function Home() {
                 ⚡ Gerar código aleatório
               </button>
 
-              <button
-                onClick={() => {
-                  if (!customRoomCode.trim()) { alert("Digite um código de sala!"); return; }
-                  setAuthState("app");
-                }}
-                style={{ backgroundColor: "#06b6d4", color: "#020617", border: "none", borderRadius: "0.75rem", padding: "0.85rem", fontWeight: "bold", cursor: "pointer" }}
-              >
+              <button onClick={() => { if (!customRoomCode.trim()) { alert("Digite um código de sala!"); return; } setAuthState("app"); }} style={{ backgroundColor: "#06b6d4", color: "#020617", border: "none", borderRadius: "0.75rem", padding: "0.85rem", fontWeight: "bold", cursor: "pointer" }}>
                 ENTRAR NA SESSÃO
               </button>
             </div>
           </div>
         )}
 
-        {/* APLICATIVO PRINCIPAL */}
         {(authState === "app" || (authState === "modes" && selectedMode === "solo") || (authState === "modes" && selectedMode && customRoomCode)) && (
           <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
             
@@ -475,9 +400,7 @@ export default function Home() {
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                   <img src={userAvatar} alt="Avatar" style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", border: "2px solid #ec4899" }} />
                   <div>
-                    <h1 style={{ fontSize: "1.1rem", color: "#ec4899", margin: 0, fontWeight: "bold", textTransform: "uppercase" }}>
-                      {userName}
-                    </h1>
+                    <h1 style={{ fontSize: "1.1rem", color: "#ec4899", margin: 0, fontWeight: "bold", textTransform: "uppercase" }}>{userName}</h1>
                     <span style={{ fontSize: "0.7rem", color: "#22d3ee", textTransform: "uppercase", fontWeight: "bold" }}>
                       {selectedMode ? `${selectedMode} ${customRoomCode ? `(${customRoomCode})` : ""}` : "Perfil Ativo"}
                     </span>
@@ -598,7 +521,6 @@ export default function Home() {
 
             {activeView === "podio" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "3rem", textAlign: "center" }}>
-                
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem" }}>
                   <h2 style={{ color: "#ec4899", fontSize: "1.6rem", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <Film style={{ width: "1.5rem", height: "1.5rem" }} /> Pódio de Filmes
@@ -678,45 +600,29 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-
               </div>
             )}
 
             {activeView === "perfil" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-                
                 <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236,72,153,0.4)", borderRadius: "1.5rem", padding: "2rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem", textAlign: "center" }}>
                   <img src={userAvatar} alt="Avatar Pet" style={{ width: "100px", height: "100px", borderRadius: "50%", objectFit: "cover", border: "3px solid #ec4899", boxShadow: "0 0 15px rgba(236,72,153,0.4)" }} />
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%", maxWidth: "300px" }}>
                     <label style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "bold" }}>Seu Nome / Apelido:</label>
-                    <input
-                      type="text"
-                      value={userName}
-                      onChange={(e) => setUserName(e.target.value)}
-                      style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.6rem", color: "#fff", textAlign: "center", fontWeight: "bold", outline: "none" }}
-                    />
+                    <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.6rem", color: "#fff", textAlign: "center", fontWeight: "bold", outline: "none" }} />
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%" }}>
                     <span style={{ fontSize: "0.8rem", color: "#22d3ee", fontWeight: "bold" }}>Escolha seu Avatar de Bichinho:</span>
                     <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                       {PET_AVATARS.map((url, i) => (
-                        <img
-                          key={i}
-                          src={url}
-                          alt="Pet Preset"
-                          onClick={() => setUserAvatar(url)}
-                          style={{ width: "55px", height: "55px", borderRadius: "50%", objectFit: "cover", cursor: "pointer", border: userAvatar === url ? "3px solid #22d3ee" : "2px solid transparent" }}
-                        />
+                        <img key={i} src={url} alt="Pet Preset" onClick={() => setUserAvatar(url)} style={{ width: "55px", height: "55px", borderRadius: "50%", objectFit: "cover", cursor: "pointer", border: userAvatar === url ? "3px solid #22d3ee" : "2px solid transparent" }} />
                       ))}
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleShareProfileLink}
-                    style={{ backgroundColor: "#06b6d4", color: "#020617", border: "none", borderRadius: "0.75rem", padding: "0.75rem 1.5rem", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", marginTop: "0.5rem" }}
-                  >
+                  <button onClick={handleShareProfileLink} style={{ backgroundColor: "#06b6d4", color: "#020617", border: "none", borderRadius: "0.75rem", padding: "0.75rem 1.5rem", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", marginTop: "0.5rem" }}>
                     <Share2 style={{ width: "1rem", height: "1rem" }} /> Compartilhar Link do Meu Perfil
                   </button>
                 </div>
@@ -744,13 +650,11 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-
               </div>
             )}
           </div>
         )}
 
-        {/* MODAL DE AVALIAÇÃO */}
         {selectedMedia && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(2,6,23,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 100 }}>
             <div style={{ backgroundColor: "#0f172a", border: "1px solid rgba(236,72,153,0.5)", borderRadius: "1.5rem", padding: "1.5rem", maxWidth: "520px", width: "100%", display: "flex", flexDirection: "column", gap: "1.25rem", position: "relative" }}>
@@ -791,7 +695,7 @@ export default function Home() {
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
                       <button key={star} onClick={() => handleStarClick(star, partnerRating, setPartnerRating)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                        <Star style={{ width: "1.2rem", height: "1.2rem", color: partnerRating >= star ? "#22d3ee" : "#334155", fill: partnerRating >= star ? "#22d3ee" : "none" }} />
+                        <Star style={{ width: "1.2rem", height: "1.2rem", color: rating >= star ? "#22d3ee" : "#334155", fill: partnerRating >= star ? "#22d3ee" : "none" }} />
                       </button>
                     ))}
                   </div>
