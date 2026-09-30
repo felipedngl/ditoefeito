@@ -18,7 +18,7 @@ body {
   margin: 0;
   padding: 0;
   background-image: 
-    radial-gradient(circle at 50% 0%, rgba(255, 0, 127, 0.12) 0%, transparent 60%),
+    radial-gradient(circle at 50% 0%, rgba(255, 0, 127, 0.15) 0%, transparent 60%),
     linear-gradient(to bottom, #060913, #03050a);
   background-attachment: fixed;
 }
@@ -26,26 +26,18 @@ body {
 .font-pixel { font-family: var(--font-pixel); }
 .font-retro { font-family: var(--font-retro); }
 
-/* Efeitos Glow Neon */
+/* Glows Retro/Neon */
 .text-glow-pink { text-shadow: 0 0 10px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4); }
 .text-glow-blue { text-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4); }
 .text-glow-gold { text-shadow: 0 0 10px rgba(234, 179, 8, 0.8), 0 0 20px rgba(234, 179, 8, 0.4); }
 
-.box-glow-pink {
-  box-shadow: 0 0 20px rgba(255, 0, 127, 0.25), inset 0 0 15px rgba(255, 0, 127, 0.08);
-}
-
-.box-glow-blue {
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.25), inset 0 0 15px rgba(0, 240, 255, 0.08);
-}
-
-.box-glow-gold {
-  box-shadow: 0 0 25px rgba(234, 179, 8, 0.35), inset 0 0 15px rgba(234, 179, 8, 0.1);
-}
+.box-glow-pink { box-shadow: 0 0 20px rgba(255, 0, 127, 0.25), inset 0 0 15px rgba(255, 0, 127, 0.08); }
+.box-glow-blue { box-shadow: 0 0 20px rgba(0, 240, 255, 0.25), inset 0 0 15px rgba(0, 240, 255, 0.08); }
+.box-glow-gold { box-shadow: 0 0 25px rgba(234, 179, 8, 0.35), inset 0 0 15px rgba(234, 179, 8, 0.1); }
 
 .card-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card-hover:hover {
-  transform: translateY(-4px) scale(1.01);
+  transform: translateY(-4px) scale(1.02);
 }
