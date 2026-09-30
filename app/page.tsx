@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, User, Users, Trophy, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,13 +13,23 @@ const BACKGROUND_POSTERS = [
   "https://image.tmdb.org/t/p/w500/f89U345928p12.jpg",
 ];
 
+type TabType = "solo" | "duo" | "podio";
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"solo" | "duo" | "podio">("solo");
+  const [activeTab, setActiveTab] = useState<TabType>("solo");
   const [searchQuery, setSearchQuery] = useState("");
+  const [introFinished, setIntroFinished] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIntroFinished(true);
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <main className="relative min-h-screen max-w-5xl mx-auto px-4 py-8 overflow-hidden">
-      {/* Background Órbita 3D */}
+      {/* Background de Capas Flutuantes */}
       <div className="fixed inset-0 pointer-events-none z-0 opacity-20 flex items-center justify-center overflow-hidden">
         <div className="relative w-[800px] h-[800px] animate-[spin_40s_linear_infinite] rounded-full border border-pink-500/20">
           {BACKGROUND_POSTERS.map((src, index) => {
@@ -41,21 +51,62 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Conteúdo Principal */}
-      <div className="relative z-10">
-        {/* Header com estilo retro */}
+      {/* Intro / Splash Screen da Logo */}
+      <AnimatePresence>
+        {!introFinished && (
+          <motion.div
+            key="splash"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.5 } }}
+            onClick={() => setIntroFinished(true)}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#090d16] cursor-pointer"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: [0.5, 1.1, 1], opacity: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="flex flex-col items-center gap-4"
+            >
+              <img
+                src="/logo.png"
+                alt="Dito & Feito Logo"
+                className="w-48 md:w-64 h-auto object-contain drop-shadow-[0_0_25px_rgba(255,0,127,0.8)]"
+              />
+              <motion.p
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ repeat: Infinity, duration: 1.2 }}
+                className="font-pixel text-xs text-cyan-400 text-glow-blue tracking-widest mt-4"
+              >
+                PRESS START / CARREGANDO...
+              </motion.p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Conteúdo Principal do Site */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={introFinished ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="relative z-10"
+      >
+        {/* Cabeçalho */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6 border-b border-pink-500/30 pb-8 text-center md:text-left backdrop-blur-md bg-slate-950/50 p-6 rounded-3xl box-glow-pink">
-          <div>
-            <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
-              <span className="text-2xl">🐱</span>
-              <h1 className="text-2xl md:text-3xl font-pixel text-pink-500 text-glow-pink tracking-wider">
+          <div className="flex items-center gap-4">
+            <img
+              src="/logo.png"
+              alt="Dito & Feito"
+              className="w-16 h-16 object-contain drop-shadow-[0_0_10px_rgba(255,0,127,0.6)]"
+            />
+            <div>
+              <h1 className="text-xl md:text-2xl font-pixel text-pink-500 text-glow-pink tracking-wider">
                 DITO & FEITO
               </h1>
-              <span className="text-2xl">🐴</span>
+              <p className="text-cyan-400 font-retro text-lg md:text-xl tracking-widest text-glow-blue">
+                ★ SESSÃO DISCO & AVALIAÇÕES RETRO ★
+              </p>
             </div>
-            <p className="text-cyan-400 font-retro text-xl md:text-2xl tracking-widest text-glow-blue">
-              ★ SESSÃO DISCO & AVALIAÇÕES RETRO ★
-            </p>
           </div>
 
           {/* Navegação de Modos */}
@@ -70,7 +121,7 @@ export default function Home() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id as TabType)}
                   className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-pixel transition-all btn-neon-hover ${
                     isActive ? "text-slate-950 font-bold" : "text-slate-400 hover:text-white"
                   }`}
@@ -97,7 +148,7 @@ export default function Home() {
           </nav>
         </header>
 
-        {/* Transição Suave do Conteúdo Principal (Design Motion) */}
+        {/* Abas */}
         <AnimatePresence mode="wait">
           {activeTab === "solo" && (
             <motion.section
@@ -189,7 +240,7 @@ export default function Home() {
             </motion.section>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </main>
   );
 }
