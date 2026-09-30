@@ -192,7 +192,7 @@ export default function Home() {
 
   const currentDisplayList = searchQuery.length >= 3 ? searchResults : trendingMovies;
 
-  // Ordenação para o Pódio F1
+  // Ordenação para o Pódio
   const sortedPodiumList = [...evaluatedList].sort((a, b) => b.averageRating - a.averageRating);
   const firstPlace = sortedPodiumList[0];
   const secondPlace = sortedPodiumList[1];
@@ -209,8 +209,15 @@ export default function Home() {
             <img
               src="/logo.png"
               alt="Dito & Feito Logo"
-              className="w-24 h-24 md:w-32 md:h-32 object-contain filter drop-shadow-[0_0_20px_rgba(255,0,127,0.6)]"
-              onError={(e) => ((e.target as HTMLElement).style.display = "none")}
+              style={{ 
+                maxWidth: "180px", 
+                maxHeight: "120px", 
+                width: "auto", 
+                height: "auto", 
+                objectFit: "contain",
+                margin: "0 auto 1rem auto",
+                display: "block"
+              }}
             />
             <h1 className="text-3xl md:text-5xl font-bold tracking-wider text-pink-500 text-glow-pink">
               DITO & FEITO
@@ -294,7 +301,7 @@ export default function Home() {
               {[
                 { id: "busca", label: "Buscar Filmes", icon: Search },
                 { id: "biblioteca", label: "Biblioteca", icon: BookOpen },
-                { id: "podio", label: "Pódio F1", icon: Trophy },
+                { id: "podio", label: "Pódio", icon: Trophy },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeView === tab.id;
