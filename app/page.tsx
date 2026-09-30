@@ -14,17 +14,17 @@ import {
   X,
   BookOpen,
   ArrowLeft,
-  MessageSquare,
   Crown,
-  QrCode,
   KeyRound,
   Pencil,
   Trash2,
   Share2,
+  LogOut,
 } from "lucide-react";
 
 const TMDB_API_KEY = "f387a8d39e74287934d786c1f2c2fe57";
 
+type AuthState = "login" | "modes" | "room" | "app";
 type ModeType = "solo" | "duo" | "grupo" | null;
 type ViewType = "busca" | "biblioteca" | "podio" | "perfil";
 
@@ -56,27 +56,27 @@ interface EvaluatedItem {
   reviews: Review[];
 }
 
-const PRESET_AVATARS = [
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&auto=format&fit=crop&q=80",
+const PET_AVATARS = [
+  "https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=200&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=200&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1534361960057-19889db9621e?w=200&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=200&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=200&auto=format&fit=crop&q=80",
 ];
 
 export default function Home() {
+  const [authState, setAuthState] = useState<AuthState>("login");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  const [userName, setUserName] = useState("");
+  const [userAvatar, setUserAvatar] = useState(PET_AVATARS[0]);
   const [selectedMode, setSelectedMode] = useState<ModeType>(null);
   const [activeView, setActiveView] = useState<ViewType>("busca");
 
-  // Perfil e Identificação
-  const [userName, setUserName] = useState("Dissa");
-  const [partnerName, setPartnerName] = useState("Kelly");
-  const [userAvatar, setUserAvatar] = useState(PRESET_AVATARS[0]);
-
-  // Sala
+  const [partnerName, setPartnerName] = useState("");
   const [customRoomCode, setCustomRoomCode] = useState("");
-  const [isRoomJoined, setIsRoomJoined] = useState(false);
 
   // TMDB Busca
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,7 +84,7 @@ export default function Home() {
   const [trendingMedia, setTrendingMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Modal Avaliação
+  // Avaliação
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [editingMediaId, setEditingMediaId] = useState<number | null>(null);
   const [rating, setRating] = useState<number>(0);
@@ -92,19 +92,28 @@ export default function Home() {
   const [partnerRating, setPartnerRating] = useState<number>(0);
   const [partnerReviewText, setPartnerReviewText] = useState("");
 
-  const [activeReviewModal, setActiveReviewModal] = useState<{ author: string; text: string } | null>(null);
   const [evaluatedList, setEvaluatedList] = useState<EvaluatedItem[]>([]);
 
-  // Persistência LocalStorage
   useEffect(() => {
+    const savedUser = localStorage.getItem("ditoefeito_logged_user");
+    if (savedUser) {
+      setUserName(savedUser);
+      setAuthState("modes");
+    }
+    const savedAvatar = localStorage.getItem("ditoefeito_avatar");
+    if (savedAvatar) setUserAvatar(savedAvatar);
+
     const savedData = localStorage.getItem("ditoefeito_evaluations");
     if (savedData) {
       try { setEvaluatedList(JSON.parse(savedData)); } catch (e) { console.error(e); }
     }
-    const savedUser = localStorage.getItem("ditoefeito_username");
-    if (savedUser) setUserName(savedUser);
-    const savedAvatar = localStorage.getItem("ditoefeito_avatar");
-    if (savedAvatar) setUserAvatar(savedAvatar);
+
+    const params = new URLSearchParams(window.location.search);
+    const profileParam = params.get("perfil");
+    if (profileParam) {
+      setUserName(profileParam);
+      setAuthState("app");
+    }
   }, []);
 
   useEffect(() => {
@@ -112,9 +121,26 @@ export default function Home() {
   }, [evaluatedList]);
 
   useEffect(() => {
-    localStorage.setItem("ditoefeito_username", userName);
     localStorage.setItem("ditoefeito_avatar", userAvatar);
-  }, [userName, userAvatar]);
+  }, [userAvatar]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail.trim()) {
+      alert("Por favor, digite seu e-mail ou apelido.");
+      return;
+    }
+    const cleanName = loginEmail.split("@")[0].toUpperCase();
+    setUserName(cleanName);
+    localStorage.setItem("ditoefeito_logged_user", cleanName);
+    setAuthState("modes");
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("ditoefeito_logged_user");
+    setAuthState("login");
+    setSelectedMode(null);
+  };
 
   const handleGenerateRandomCode = () => {
     setCustomRoomCode("SESSAO-" + Math.floor(1000 + Math.random() * 9000));
@@ -169,7 +195,7 @@ export default function Home() {
       overview: "",
     });
     setEditingMediaId(item.id);
-    const currentUser = userName.trim() || "Você";
+    const currentUser = userName.trim() || "Usuário";
     const currentPartner = partnerName.trim() || "Parceiro(a)";
     setRating(item.ratings[currentUser] || 0);
     setReviewText(item.reviews.find((r) => r.author === currentUser)?.text || "");
@@ -186,7 +212,7 @@ export default function Home() {
   const handleSaveEvaluation = () => {
     if (!selectedMedia) return;
     const isDuoOrGroup = selectedMode === "duo" || selectedMode === "grupo";
-    const authorOne = userName.trim() || "Você";
+    const authorOne = userName.trim() || "Usuário";
     const authorTwo = partnerName.trim() || "Parceiro(a)";
 
     const ratingsObj: { [k: string]: number } = { [authorOne]: rating };
@@ -223,16 +249,16 @@ export default function Home() {
   const currentDisplayList = searchQuery.length >= 3 ? searchResults : trendingMedia;
   const moviesList = evaluatedList.filter(item => item.media_type === "movie").sort((a, b) => b.averageRating - a.averageRating);
   const seriesList = evaluatedList.filter(item => item.media_type === "tv").sort((a, b) => b.averageRating - a.averageRating);
-  const currentUser = userName.trim() || "Você";
+  const currentUser = userName.trim() || "Usuário";
   const userPersonalEvaluations = evaluatedList.filter(item => item.ratings[currentUser] !== undefined);
 
-  const handleShareProfile = () => {
-    const text = `Confira minhas avaliações no Dito & Feito! Total de títulos avaliados: ${userPersonalEvaluations.length}`;
+  const handleShareProfileLink = () => {
+    const profileUrl = `${window.location.origin}?perfil=${encodeURIComponent(userName)}`;
     if (navigator.share) {
-      navigator.share({ title: "Dito & Feito - Perfil", text, url: window.location.href }).catch(() => {});
+      navigator.share({ title: `Perfil de ${userName} - Avaliações`, text: `Veja as avaliações de filmes e séries de ${userName}!`, url: profileUrl }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Link do perfil copiado para a área de transferência!");
+      navigator.clipboard.writeText(profileUrl);
+      alert(`Link do perfil de ${userName} copiado para a área de transferência!\n\n${profileUrl}`);
     }
   };
 
@@ -263,21 +289,75 @@ export default function Home() {
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", position: "relative", zIndex: 10 }}>
         
-        {/* TELA INICIAL */}
-        {!selectedMode ? (
+        {/* TELA DE LOGIN INICIAL */}
+        {authState === "login" && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2rem" }}>
+            <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "2.5rem 2rem", width: "100%", maxWidth: "420px", textAlign: "center", display: "flex", flexDirection: "column", gap: "1.5rem", boxShadow: "0 0 35px rgba(236, 72, 153, 0.25)" }}>
+              
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+                <img
+                  src="/logo.png"
+                  alt="Logo"
+                  style={{ width: "90px", height: "90px", objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(236,72,153,0.5))" }}
+                  onError={(e) => ((e.target as HTMLElement).style.display = "none")}
+                />
+                <h1 style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#ec4899", margin: 0 }}>ENTRAR NO SISTEMA</h1>
+                <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>Insira seu e-mail ou apelido para carregar seu histórico</p>
+              </div>
+
+              <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem", textAlign: "left" }}>
+                <div>
+                  <label style={{ fontSize: "0.75rem", color: "#22d3ee", fontWeight: "bold", display: "block", marginBottom: "0.4rem" }}>E-mail ou Apelido:</label>
+                  <input
+                    type="text"
+                    placeholder="ex: nome@email.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.85rem", color: "#fff", outline: "none", fontSize: "0.9rem", boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "0.75rem", color: "#22d3ee", fontWeight: "bold", display: "block", marginBottom: "0.4rem" }}>Senha:</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.85rem", color: "#fff", outline: "none", fontSize: "0.9rem", boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  style={{ backgroundColor: "#db2777", color: "#fff", border: "none", borderRadius: "0.75rem", padding: "0.9rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", marginTop: "0.5rem", boxShadow: "0 0 15px rgba(219,39,119,0.4)" }}
+                >
+                  ACESSAR MINHA CONTA
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* SELEÇÃO DE MODO */}
+        {authState === "modes" && !selectedMode && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2.5rem", textAlign: "center" }}>
             
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-              <img
-                src="/logo.png"
-                alt="Dito & Feito Logo"
-                style={{ width: "140px", height: "140px", objectFit: "contain", filter: "drop-shadow(0 0 15px rgba(236,72,153,0.5))" }}
-                onError={(e) => ((e.target as HTMLElement).style.display = "none")}
-              />
-              <h1 style={{ fontSize: "2.8rem", fontWeight: "bold", color: "#ec4899", margin: 0, textShadow: "0 0 25px rgba(236,72,153,0.7)" }}>
-                DITO & FEITO
+            <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center", maxWidth: "800px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <img src={userAvatar} alt="Avatar" style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover", border: "2px solid #ec4899" }} />
+                <span style={{ fontSize: "1rem", color: "#fff", fontWeight: "bold" }}>Olá, {userName}</span>
+              </div>
+              <button onClick={handleLogout} style={{ background: "none", border: "1px solid #334155", color: "#94a3b8", padding: "0.5rem 1rem", borderRadius: "0.75rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem" }}>
+                <LogOut style={{ width: "1rem", height: "1rem" }} /> Sair
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+              <h1 style={{ fontSize: "2.5rem", fontWeight: "bold", color: "#ec4899", margin: 0, textTransform: "uppercase" }}>
+                {userName}
               </h1>
-              <p style={{ color: "#22d3ee", fontSize: "1.1rem", margin: 0, letterSpacing: "2px", fontWeight: "600" }}>
+              <p style={{ color: "#22d3ee", fontSize: "1rem", margin: 0, letterSpacing: "2px", fontWeight: "600" }}>
                 AVALIAÇÕES DE FILMES E SÉRIES
               </p>
             </div>
@@ -311,98 +391,67 @@ export default function Home() {
               </button>
             </div>
           </div>
-        ) : !isRoomJoined ? (
+        ) : authState === "modes" && selectedMode && selectedMode !== "solo" && !customRoomCode ? (
 
-          /* TELA DE IDENTIFICAÇÃO (SOLO, DUO, GRUPO) */
+          /* TELA DE CONFIGURAÇÃO DE SALA (CASAL / GRUPO) */
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "75vh", justifyContent: "center", gap: "1.5rem" }}>
             <button onClick={() => setSelectedMode(null)} style={{ background: "none", border: "none", color: "#ec4899", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-              <ArrowLeft style={{ width: "1.1rem", height: "1.1rem" }} /> Voltar para Seleção de Modo
+              <ArrowLeft style={{ width: "1.1rem", height: "1.1rem" }} /> Voltar
             </button>
 
-            <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(34, 211, 238, 0.5)", borderRadius: "1.5rem", padding: "2rem", width: "100%", maxWidth: "460px", textAlign: "center", display: "flex", flexDirection: "column", gap: "1.25rem", boxShadow: "0 0 30px rgba(34, 211, 238, 0.2)" }}>
-              <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.5rem" }}>
-                Identificação ({selectedMode === "duo" ? "Casalzinho" : selectedMode === "grupo" ? "Grupinho" : "Solo"})
-              </h2>
+            <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(34, 211, 238, 0.5)", borderRadius: "1.5rem", padding: "2rem", width: "100%", maxWidth: "420px", textAlign: "center", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+              <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.4rem" }}>Configurar {selectedMode === "duo" ? "Casalzinho" : "Grupinho"}</h2>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", textAlign: "left" }}>
+              <div style={{ textAlign: "left", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 <div>
-                  <label style={{ fontSize: "0.75rem", color: "#ec4899", fontWeight: "bold", display: "block", marginBottom: "0.3rem" }}>Seu Nome de Usuário:</label>
-                  <input
-                    type="text"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem", color: "#fff", outline: "none", fontSize: "0.85rem", boxSizing: "border-box" }}
-                  />
+                  <label style={{ fontSize: "0.75rem", color: "#ec4899", fontWeight: "bold", display: "block", marginBottom: "0.3rem" }}>Seu Nome:</label>
+                  <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem", color: "#fff", boxSizing: "border-box" }} />
                 </div>
-
-                {(selectedMode === "duo" || selectedMode === "grupo") && (
-                  <div>
-                    <label style={{ fontSize: "0.75rem", color: "#22d3ee", fontWeight: "bold", display: "block", marginBottom: "0.3rem" }}>Nome do(a) Acompanhante / Parceiro(a):</label>
-                    <input
-                      type="text"
-                      value={partnerName}
-                      onChange={(e) => setPartnerName(e.target.value)}
-                      style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem", color: "#fff", outline: "none", fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
-                  </div>
-                )}
+                <div>
+                  <label style={{ fontSize: "0.75rem", color: "#22d3ee", fontWeight: "bold", display: "block", marginBottom: "0.3rem" }}>Nome do(a) Parceiro(a) / Amigo(a):</label>
+                  <input type="text" placeholder="Digite o nome..." value={partnerName} onChange={(e) => setPartnerName(e.target.value)} style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem", color: "#fff", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: "0.75rem", color: "#eab308", fontWeight: "bold", display: "block", marginBottom: "0.3rem" }}>Código da Sala:</label>
+                  <input type="text" placeholder="EX: SESSAO123" value={customRoomCode} onChange={(e) => setCustomRoomCode(e.target.value.toUpperCase())} style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem", color: "#fff", textTransform: "uppercase", boxSizing: "border-box" }} />
+                </div>
               </div>
 
-              {(selectedMode === "duo" || selectedMode === "grupo") && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem", borderTop: "1px solid #1e293b", paddingTop: "1rem" }}>
-                  <div style={{ position: "relative" }}>
-                    <KeyRound style={{ position: "absolute", left: "1rem", top: "0.85rem", width: "1.1rem", height: "1.1rem", color: "#22d3ee" }} />
-                    <input
-                      type="text"
-                      placeholder="CÓDIGO DA SALA (EX: CASAL123)"
-                      value={customRoomCode}
-                      onChange={(e) => setCustomRoomCode(e.target.value.toUpperCase())}
-                      style={{ width: "100%", backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem 1rem 0.75rem 2.75rem", textAlign: "center", color: "#fff", textTransform: "uppercase", outline: "none", fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
-                  </div>
-                  <button onClick={handleGenerateRandomCode} style={{ background: "none", border: "none", color: "#22d3ee", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline" }}>
-                    ⚡ Gerar código aleatório
-                  </button>
-                </div>
-              )}
+              <button onClick={handleGenerateRandomCode} style={{ background: "none", border: "none", color: "#22d3ee", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline" }}>
+                ⚡ Gerar código aleatório
+              </button>
 
               <button
                 onClick={() => {
-                  if ((selectedMode === "duo" || selectedMode === "grupo") && !customRoomCode.trim()) {
-                    alert("Por favor, digite ou gere um código para a sala.");
-                    return;
-                  }
-                  if (!userName.trim()) {
-                    alert("Por favor, digite seu nome de usuário.");
-                    return;
-                  }
-                  setIsRoomJoined(true);
+                  if (!customRoomCode.trim()) { alert("Digite um código de sala!"); return; }
+                  setAuthState("app");
                 }}
-                style={{ backgroundColor: "#06b6d4", color: "#020617", border: "none", borderRadius: "0.75rem", padding: "0.9rem", fontWeight: "bold", fontSize: "0.9rem", cursor: "pointer", boxShadow: "0 0 15px rgba(6, 182, 212, 0.4)", marginTop: "0.5rem" }}
+                style={{ backgroundColor: "#06b6d4", color: "#020617", border: "none", borderRadius: "0.75rem", padding: "0.85rem", fontWeight: "bold", cursor: "pointer" }}
               >
                 ENTRAR NA SESSÃO
               </button>
             </div>
           </div>
-
         ) : (
 
-          /* ÁREA PRINCIPAL COM O NOME DO USUÁRIO NO TOPO */
+          /* ÁREA PRINCIPAL DO APLICATIVO */
           <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
             
             <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236,72,153,0.4)", padding: "1rem 1.25rem", borderRadius: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <button onClick={() => setSelectedMode(null)} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.5rem", color: "#ec4899", cursor: "pointer" }}>
+                <button onClick={() => { setAuthState("modes"); setSelectedMode(null); }} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.5rem", color: "#ec4899", cursor: "pointer" }}>
                   <ArrowLeft style={{ width: "1.2rem", height: "1.2rem" }} />
                 </button>
-                <div>
-                  {/* NOME DE USUÁRIO ESCOLHIDO NO TOPO */}
-                  <h1 style={{ fontSize: "1.2rem", color: "#ec4899", margin: 0, fontWeight: "bold", textTransform: "uppercase" }}>
-                    {userName.trim() || "MEU PERFIL"}
-                  </h1>
-                  <span style={{ fontSize: "0.75rem", color: "#22d3ee", textTransform: "uppercase", fontWeight: "bold" }}>
-                    {selectedMode === "duo" ? "Casalzinho" : selectedMode} {customRoomCode && `(${customRoomCode})`}
-                  </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <img src={userAvatar} alt="Avatar" style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", border: "2px solid #ec4899" }} />
+                  <div>
+                    <h1 style={{ fontSize: "1.1rem", color: "#ec4899", margin: 0, fontWeight: "bold", textTransform: "uppercase" }}>
+                      {userName}
+                    </h1>
+                    <span style={{ fontSize: "0.7rem", color: "#22d3ee", textTransform: "uppercase", fontWeight: "bold" }}>
+                      {selectedMode ? `${selectedMode} ${customRoomCode ? `(${customRoomCode})` : ""}` : "Perfil Ativo"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -519,7 +568,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* ABA PÓDIO SEPARADA (FILMES E SÉRIES) */}
+            {/* ABA PÓDIO SEPARADO */}
             {activeView === "podio" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "3rem", textAlign: "center" }}>
                 
@@ -613,10 +662,10 @@ export default function Home() {
               <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
                 
                 <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236,72,153,0.4)", borderRadius: "1.5rem", padding: "2rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem", textAlign: "center" }}>
-                  <img src={userAvatar} alt="Avatar" style={{ width: "100px", height: "100px", borderRadius: "50%", objectFit: "cover", border: "3px solid #ec4899", boxShadow: "0 0 15px rgba(236,72,153,0.4)" }} />
+                  <img src={userAvatar} alt="Avatar Pet" style={{ width: "100px", height: "100px", borderRadius: "50%", objectFit: "cover", border: "3px solid #ec4899", boxShadow: "0 0 15px rgba(236,72,153,0.4)" }} />
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%", maxWidth: "300px" }}>
-                    <label style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "bold" }}>Seu Nome de Perfil:</label>
+                    <label style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: "bold" }}>Seu Apelido / Nome:</label>
                     <input
                       type="text"
                       value={userName}
@@ -626,25 +675,25 @@ export default function Home() {
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%" }}>
-                    <span style={{ fontSize: "0.8rem", color: "#22d3ee", fontWeight: "bold" }}>Escolha seu Avatar (Estilo Streaming):</span>
+                    <span style={{ fontSize: "0.8rem", color: "#22d3ee", fontWeight: "bold" }}>Escolha seu Avatar de Bichinho:</span>
                     <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-                      {PRESET_AVATARS.map((url, i) => (
+                      {PET_AVATARS.map((url, i) => (
                         <img
                           key={i}
                           src={url}
-                          alt="Preset"
+                          alt="Pet Preset"
                           onClick={() => setUserAvatar(url)}
-                          style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover", cursor: "pointer", border: userAvatar === url ? "3px solid #22d3ee" : "2px solid transparent" }}
+                          style={{ width: "55px", height: "55px", borderRadius: "50%", objectFit: "cover", cursor: "pointer", border: userAvatar === url ? "3px solid #22d3ee" : "2px solid transparent" }}
                         />
                       ))}
                     </div>
                   </div>
 
                   <button
-                    onClick={handleShareProfile}
+                    onClick={handleShareProfileLink}
                     style={{ backgroundColor: "#06b6d4", color: "#020617", border: "none", borderRadius: "0.75rem", padding: "0.75rem 1.5rem", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", marginTop: "0.5rem" }}
                   >
-                    <Share2 style={{ width: "1rem", height: "1rem" }} /> Compartilhar Meu Perfil
+                    <Share2 style={{ width: "1rem", height: "1rem" }} /> Compartilhar Link do Meu Perfil
                   </button>
                 </div>
 
@@ -695,9 +744,8 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Nota Usuário 1 */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold" }}>Nota de {userName.trim() || "Você"}: {rating} / 10 ★</span>
+                <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold" }}>Nota de {userName.trim() || "Usuário"}: {rating} / 10 ★</span>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
                     <button key={star} onClick={() => handleStarClick(star, rating, setRating)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
@@ -713,7 +761,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* Nota Acompanhante */}
               {(selectedMode === "duo" || selectedMode === "grupo") && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", borderTop: "1px solid #1e293b", paddingTop: "0.75rem" }}>
                   <span style={{ fontSize: "0.85rem", color: "#22d3ee", fontWeight: "bold" }}>Nota de {partnerName.trim() || "Parceiro(a)"}: {partnerRating} / 10 ★</span>
