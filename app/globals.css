@@ -7,7 +7,6 @@
 :root {
   --neon-pink: #ff007f;
   --neon-blue: #00f0ff;
-  --neon-yellow: #ffe600;
   --bg-dark: #090d16;
 }
 
@@ -21,7 +20,6 @@ body {
     linear-gradient(to bottom, #090d16, #05070e);
 }
 
-/* Fonte Pixel / 80s Disco */
 .font-pixel {
   font-family: 'Press Start 2P', cursive;
 }
@@ -30,13 +28,13 @@ body {
   font-family: 'VT323', monospace;
 }
 
-/* Brilhos Neon */
+/* Efeitos Neon */
 .text-glow-pink {
-  text-shadow: 0 0 10px rgba(255, 0, 127, 0.7), 0 0 20px rgba(255, 0, 127, 0.4);
+  text-shadow: 0 0 10px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4);
 }
 
 .text-glow-blue {
-  text-shadow: 0 0 10px rgba(0, 240, 255, 0.7), 0 0 20px rgba(0, 240, 255, 0.4);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4);
 }
 
 .box-glow-pink {
@@ -47,4 +45,18 @@ body {
 .box-glow-blue {
   box-shadow: 0 0 15px rgba(0, 240, 255, 0.3), inset 0 0 15px rgba(0, 240, 255, 0.1);
   border: 1px solid rgba(0, 240, 255, 0.5);
+}
+
+/* Interações UUPM - Hover & Motion */
+.btn-neon-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-neon-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(255, 0, 127, 0.6), inset 0 0 10px rgba(255, 0, 127, 0.2);
+}
+
+.btn-neon-hover:active {
+  transform: translateY(1px);
 }
