@@ -1,62 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Rajdhani:wght@500;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
 :root {
-  --neon-pink: #ff007f;
-  --neon-blue: #00f0ff;
-  --bg-dark: #090d16;
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-retro: 'VT323', monospace;
 }
 
 body {
-  background-color: var(--bg-dark);
+  background-color: #080c14;
   color: #f8fafc;
-  font-family: 'Rajdhani', sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   min-height: 100vh;
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(255, 0, 127, 0.15) 0%, transparent 50%),
-    linear-gradient(to bottom, #090d16, #05070e);
+  margin: 0;
+  padding: 0;
 }
 
 .font-pixel {
-  font-family: 'Press Start 2P', cursive;
+  font-family: var(--font-pixel);
 }
 
 .font-retro {
-  font-family: 'VT323', monospace;
+  font-family: var(--font-retro);
 }
 
-/* Efeitos Neon */
 .text-glow-pink {
-  text-shadow: 0 0 10px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4);
+  text-shadow: 0 0 8px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4);
 }
 
 .text-glow-blue {
-  text-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4);
 }
 
 .box-glow-pink {
-  box-shadow: 0 0 15px rgba(255, 0, 127, 0.3), inset 0 0 15px rgba(255, 0, 127, 0.1);
-  border: 1px solid rgba(255, 0, 127, 0.5);
+  box-shadow: 0 0 15px rgba(255, 0, 127, 0.25), inset 0 0 15px rgba(255, 0, 127, 0.1);
 }
 
 .box-glow-blue {
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.3), inset 0 0 15px rgba(0, 240, 255, 0.1);
-  border: 1px solid rgba(0, 240, 255, 0.5);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25), inset 0 0 15px rgba(0, 240, 255, 0.1);
 }
 
-/* Interações UUPM - Hover & Motion */
 .btn-neon-hover {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
 }
 
 .btn-neon-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(255, 0, 127, 0.6), inset 0 0 10px rgba(255, 0, 127, 0.2);
-}
-
-.btn-neon-hover:active {
-  transform: translateY(1px);
+  filter: brightness(1.2);
 }
