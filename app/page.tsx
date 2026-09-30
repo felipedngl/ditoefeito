@@ -15,12 +15,10 @@ import {
   BookOpen,
   ArrowLeft,
   Crown,
-  KeyRound,
   Pencil,
   Trash2,
   Share2,
   LogOut,
-  Mail,
 } from "lucide-react";
 
 const TMDB_API_KEY = "f387a8d39e74287934d786c1f2c2fe57";
@@ -77,13 +75,11 @@ export default function Home() {
   const [partnerName, setPartnerName] = useState("");
   const [customRoomCode, setCustomRoomCode] = useState("");
 
-  // TMDB Busca
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MediaItem[]>([]);
   const [trendingMedia, setTrendingMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Avaliação
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [editingMediaId, setEditingMediaId] = useState<number | null>(null);
   const [rating, setRating] = useState<number>(0);
@@ -93,7 +89,6 @@ export default function Home() {
 
   const [evaluatedList, setEvaluatedList] = useState<EvaluatedItem[]>([]);
 
-  // Carregamento inicial via Google Session Storage / LocalStorage por conta e URL param
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const profileParam = params.get("perfil");
@@ -127,7 +122,6 @@ export default function Home() {
     }
   }, []);
 
-  // Salvar dados específicos do usuário logado na nuvem simulada/localStorage por ID de conta
   useEffect(() => {
     if (userEmail) {
       const userDbKey = `db_evaluations_${userEmail}`;
@@ -136,9 +130,7 @@ export default function Home() {
     localStorage.setItem("google_auth_avatar", userAvatar);
   }, [evaluatedList, userAvatar, userEmail]);
 
-  // Simulação de Login com Google OAuth
   const handleGoogleLogin = () => {
-    // Simula autenticação Google rápida e interativa para testes
     const mockEmail = prompt("Simulando Login com Google. Digite seu e-mail:", "dissa@gmail.com");
     if (!mockEmail) return;
 
@@ -149,7 +141,6 @@ export default function Home() {
     localStorage.setItem("google_auth_email", mockEmail);
     localStorage.setItem("google_auth_name", namePart);
 
-    // Carregar dados salvos desta conta específica se houver
     const userDbKey = `db_evaluations_${mockEmail}`;
     const savedData = localStorage.getItem(userDbKey);
     if (savedData) {
@@ -280,7 +271,6 @@ export default function Home() {
   const currentUser = userName.trim() || "Usuário";
   const userPersonalEvaluations = evaluatedList.filter(item => item.ratings[currentUser] !== undefined);
 
-  // Link Individual e Compartilhamento de Perfil
   const handleShareProfileLink = () => {
     const profileUrl = `${window.location.origin}?perfil=${encodeURIComponent(userName)}`;
     if (navigator.share) {
@@ -345,7 +335,6 @@ export default function Home() {
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", position: "relative", zIndex: 10 }}>
         
-        {/* MODAL / TELA DE LOGIN INICIAL COM GOOGLE */}
         {authState === "login" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2rem" }}>
             <div style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "3rem 2rem", width: "100%", maxWidth: "420px", textAlign: "center", display: "flex", flexDirection: "column", gap: "1.75rem", boxShadow: "0 0 40px rgba(236, 72, 153, 0.3)" }}>
@@ -363,7 +352,7 @@ export default function Home() {
 
               <button
                 onClick={handleGoogleLogin}
-                style={{ backgroundColor: "#ffffff", color: "#0f172a", border: "none", borderRadius: "0.85rem", padding: "0.95rem 1.25rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", boxShadow: "0 4px 15px rgba(255,255,255,0.2)", transition: "transform 0.2s" }}
+                style={{ backgroundColor: "#ffffff", color: "#0f172a", border: "none", borderRadius: "0.85rem", padding: "0.95rem 1.25rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", boxShadow: "0 4px 15px rgba(255,255,255,0.2)" }}
               >
                 <svg style={{ width: "1.2rem", height: "1.2rem" }} viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
@@ -377,7 +366,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* SELEÇÃO DE MODO */}
         {authState === "modes" && !selectedMode && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "85vh", gap: "2.5rem", textAlign: "center" }}>
             
@@ -403,7 +391,7 @@ export default function Home() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem", width: "100%" }}>
               <button
                 onClick={() => setSelectedMode("solo")}
-                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", boxShadow: "0 0 20px rgba(236, 72, 153, 0.15)" }}
+                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236, 72, 153, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
               >
                 <User style={{ width: "2.25rem", height: "2.25rem", color: "#ec4899" }} />
                 <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#ec4899", margin: 0 }}>Solo</h3>
@@ -412,7 +400,7 @@ export default function Home() {
 
               <button
                 onClick={() => setSelectedMode("duo")}
-                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(34, 211, 238, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", boxShadow: "0 0 20px rgba(34, 211, 238, 0.15)" }}
+                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(34, 211, 238, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
               >
                 <Heart style={{ width: "2.25rem", height: "2.25rem", color: "#22d3ee" }} />
                 <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#22d3ee", margin: 0 }}>Casalzinho</h3>
@@ -421,7 +409,7 @@ export default function Home() {
 
               <button
                 onClick={() => setSelectedMode("grupo")}
-                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(234, 179, 8, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", boxShadow: "0 0 20px rgba(234, 179, 8, 0.15)" }}
+                style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(234, 179, 8, 0.5)", borderRadius: "1.5rem", padding: "1.75rem", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}
               >
                 <Users style={{ width: "2.25rem", height: "2.25rem", color: "#eab308" }} />
                 <h3 style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#eab308", margin: 0 }}>Grupinho</h3>
@@ -431,7 +419,6 @@ export default function Home() {
           </div>
         ) : authState === "modes" && selectedMode && selectedMode !== "solo" && !customRoomCode ? (
 
-          /* TELA DE CONFIGURAÇÃO DE SALA */
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "75vh", justifyContent: "center", gap: "1.5rem" }}>
             <button onClick={() => setSelectedMode(null)} style={{ background: "none", border: "none", color: "#ec4899", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
               <ArrowLeft style={{ width: "1.1rem", height: "1.1rem" }} /> Voltar
@@ -472,7 +459,6 @@ export default function Home() {
           </div>
         ) : (
 
-          /* ÁREA PRINCIPAL DO APLICATIVO */
           <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
             
             <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236,72,153,0.4)", padding: "1rem 1.25rem", borderRadius: "1.5rem" }}>
@@ -515,7 +501,6 @@ export default function Home() {
               </nav>
             </header>
 
-            {/* ABA BUSCA */}
             {activeView === "busca" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                 <div style={{ position: "relative", width: "100%" }}>
@@ -569,7 +554,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* ABA BIBLIOTECA */}
             {activeView === "biblioteca" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                 <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.4rem" }}>Biblioteca Geral de Avaliações</h2>
@@ -606,11 +590,9 @@ export default function Home() {
               </div>
             )}
 
-            {/* ABA PÓDIO SEPARADO */}
             {activeView === "podio" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "3rem", textAlign: "center" }}>
                 
-                {/* Pódio de Filmes */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem" }}>
                   <h2 style={{ color: "#ec4899", fontSize: "1.6rem", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <Film style={{ width: "1.5rem", height: "1.5rem" }} /> Pódio de Filmes
@@ -651,7 +633,6 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Pódio de Séries */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem", borderTop: "1px solid #1e293b", paddingTop: "2rem" }}>
                   <h2 style={{ color: "#22d3ee", fontSize: "1.6rem", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <Tv style={{ width: "1.5rem", height: "1.5rem" }} /> Pódio de Séries
@@ -695,7 +676,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* ABA PERFIL (BICHINHOS + LINK DE COMPARTILHAMENTO) */}
             {activeView === "perfil" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
                 
@@ -764,7 +744,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* MODAL DE AVALIAÇÃO */}
         {selectedMedia && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(2,6,23,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 100 }}>
             <div style={{ backgroundColor: "#0f172a", border: "1px solid rgba(236,72,153,0.5)", borderRadius: "1.5rem", padding: "1.5rem", maxWidth: "520px", width: "100%", display: "flex", flexDirection: "column", gap: "1.25rem", position: "relative" }}>
