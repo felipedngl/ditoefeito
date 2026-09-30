@@ -10,6 +10,7 @@ import {
   Star,
   Loader2,
   Film,
+  Tv,
   X,
   BookOpen,
   ArrowLeft,
@@ -19,7 +20,6 @@ import {
   KeyRound,
   Pencil,
   Trash2,
-  Sparkles,
 } from "lucide-react";
 
 const TMDB_API_KEY = "f387a8d39e74287934d786c1f2c2fe57";
@@ -27,11 +27,14 @@ const TMDB_API_KEY = "f387a8d39e74287934d786c1f2c2fe57";
 type ModeType = "solo" | "duo" | "grupo" | null;
 type ViewType = "busca" | "biblioteca" | "podio";
 
-interface Movie {
+interface MediaItem {
   id: number;
-  title: string;
+  title?: string;
+  name?: string;
+  media_type?: "movie" | "tv";
   poster_path: string | null;
-  release_date: string;
+  release_date?: string;
+  first_air_date?: string;
   vote_average: number;
   overview: string;
 }
@@ -41,9 +44,10 @@ interface Review {
   text: string;
 }
 
-interface EvaluatedMovie {
+interface EvaluatedItem {
   id: number;
   title: string;
+  media_type: "movie" | "tv";
   poster_path: string | null;
   release_date: string;
   ratings: { [author: string]: number };
@@ -55,33 +59,36 @@ export default function Home() {
   const [selectedMode, setSelectedMode] = useState<ModeType>(null);
   const [activeView, setActiveView] = useState<ViewType>("busca");
 
-  // Código de Sala Personalizável pelo Host
+  // Nomes dos Participantes
+  const [userName, setUserName] = useState("");
+  const [partnerName, setPartnerName] = useState("");
+
+  // Código de Sala
   const [customRoomCode, setCustomRoomCode] = useState("");
   const [isRoomJoined, setIsRoomJoined] = useState(false);
 
-  // Busca e Resultados TMDB
+  // Busca TMDB
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Movie[]>([]);
-  const [trendingMovies, setTrendingMovies] = useState<Movie[]>([]);
+  const [searchResults, setSearchResults] = useState<MediaItem[]>([]);
+  const [trendingMedia, setTrendingMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Modal de Avaliação do Filme
-  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
-  const [editingMovieId, setEditingMovieId] = useState<number | null>(null);
+  // Modal de Avaliação
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const [editingMediaId, setEditingMediaId] = useState<number | null>(null);
   
-  const [rating, setRating] = useState<number>(8);
+  // Notas zeradas por padrão (0)
+  const [rating, setRating] = useState<number>(0);
   const [reviewText, setReviewText] = useState("");
-  const [userName] = useState("Felipe");
-  const [partnerName] = useState("Kelly");
-  const [partnerRating, setPartnerRating] = useState<number>(7.5);
+  const [partnerRating, setPartnerRating] = useState<number>(0);
   const [partnerReviewText, setPartnerReviewText] = useState("");
 
   const [activeReviewModal, setActiveReviewModal] = useState<{ author: string; text: string } | null>(null);
 
-  // Lista de Filmes Avaliados (Recupera do LocalStorage se existir)
-  const [evaluatedList, setEvaluatedList] = useState<EvaluatedMovie[]>([]);
+  // Lista de Avaliações
+  const [evaluatedList, setEvaluatedList] = useState<EvaluatedItem[]>([]);
 
-  // Carregar dados salvos no navegador ao abrir
+  // Carregar dados do localStorage ao iniciar
   useEffect(() => {
     const savedData = localStorage.getItem("ditoefeito_evaluations");
     if (savedData) {
@@ -93,36 +100,39 @@ export default function Home() {
     }
   }, []);
 
-  // Salvar no LocalStorage sempre que a lista for alterada
+  // Salvar no localStorage sempre que mudar
   useEffect(() => {
     localStorage.setItem("ditoefeito_evaluations", JSON.stringify(evaluatedList));
   }, [evaluatedList]);
 
-  // Gerar código de sala aleatório se o usuário quiser
+  // Gerar código de sala
   const handleGenerateRandomCode = () => {
     const randomCode = "SESSAO-" + Math.floor(1000 + Math.random() * 9000);
     setCustomRoomCode(randomCode);
   };
 
-  // Carregar Populares
+  // Carregar em alta da semana
   useEffect(() => {
     const fetchTrending = async () => {
       try {
         const res = await fetch(
-          `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&language=pt-BR`
+          `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_API_KEY}&language=pt-BR`
         );
         const data = await res.json();
         if (data.results) {
-          setTrendingMovies(data.results.slice(0, 16));
+          const filtered = data.results.filter(
+            (item: any) => item.media_type === "movie" || item.media_type === "tv"
+          );
+          setTrendingMedia(filtered.slice(0, 16));
         }
       } catch (e) {
-        console.error("Erro ao carregar populares:", e);
+        console.error("Erro ao carregar em alta:", e);
       }
     };
     fetchTrending();
   }, []);
 
-  // Busca TMDB
+  // Busca Multi no TMDB
   useEffect(() => {
     const fetchSearch = async () => {
       if (searchQuery.trim().length < 3) {
@@ -132,13 +142,16 @@ export default function Home() {
       setLoading(true);
       try {
         const res = await fetch(
-          `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(
+          `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(
             searchQuery
           )}`
         );
         const data = await res.json();
         if (data.results) {
-          setSearchResults(data.results);
+          const filtered = data.results.filter(
+            (item: any) => item.media_type === "movie" || item.media_type === "tv"
+          );
+          setSearchResults(filtered);
         }
       } catch (err) {
         console.error("Erro na busca:", err);
@@ -151,7 +164,7 @@ export default function Home() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  // Clique na Estrela (1 a 10 e meias estrelas)
+  // Clique na Estrela (1 a 10 e .5)
   const handleStarClick = (starIndex: number, currentVal: number, setValFunc: (v: number) => void) => {
     if (currentVal === starIndex) {
       setValFunc(starIndex - 0.5);
@@ -160,26 +173,30 @@ export default function Home() {
     }
   };
 
-  // Abrir Modal de Edição de um Filme Já Avaliado
-  const handleEditEvaluation = (item: EvaluatedMovie) => {
-    const movieObj: Movie = {
+  // Editar Filme/Série
+  const handleEditEvaluation = (item: EvaluatedItem) => {
+    const mediaObj: MediaItem = {
       id: item.id,
       title: item.title,
+      media_type: item.media_type,
       poster_path: item.poster_path,
       release_date: item.release_date,
       vote_average: 0,
       overview: "",
     };
 
-    setSelectedMovie(movieObj);
-    setEditingMovieId(item.id);
+    setSelectedMedia(mediaObj);
+    setEditingMediaId(item.id);
 
-    setRating(item.ratings[userName] || 8);
-    setReviewText(item.reviews.find((r) => r.author === userName)?.text || "");
+    const currentUser = userName.trim() || "Você";
+    const currentPartner = partnerName.trim() || "Parceiro(a)";
+
+    setRating(item.ratings[currentUser] || 0);
+    setReviewText(item.reviews.find((r) => r.author === currentUser)?.text || "");
 
     if (selectedMode === "duo" || selectedMode === "grupo") {
-      setPartnerRating(item.ratings[partnerName] || 7.5);
-      setPartnerReviewText(item.reviews.find((r) => r.author === partnerName)?.text || "");
+      setPartnerRating(item.ratings[currentPartner] || 0);
+      setPartnerReviewText(item.reviews.find((r) => r.author === currentPartner)?.text || "");
     }
   };
 
@@ -188,47 +205,53 @@ export default function Home() {
     setEvaluatedList((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Salvar / Atualizar Votação
+  // Salvar Votação
   const handleSaveEvaluation = () => {
-    if (!selectedMovie) return;
+    if (!selectedMedia) return;
 
     const isDuoOrGroup = selectedMode === "duo" || selectedMode === "grupo";
-    const ratingsObj: { [k: string]: number } = { [userName]: rating };
+    const authorOne = userName.trim() || "Você";
+    const authorTwo = partnerName.trim() || "Parceiro(a)";
+
+    const ratingsObj: { [k: string]: number } = { [authorOne]: rating };
     const reviewsArr: Review[] = [];
 
     if (reviewText.trim()) {
-      reviewsArr.push({ author: userName, text: reviewText });
+      reviewsArr.push({ author: authorOne, text: reviewText });
     }
 
     if (isDuoOrGroup) {
-      ratingsObj[partnerName] = partnerRating;
+      ratingsObj[authorTwo] = partnerRating;
       if (partnerReviewText.trim()) {
-        reviewsArr.push({ author: partnerName, text: partnerReviewText });
+        reviewsArr.push({ author: authorTwo, text: partnerReviewText });
       }
     }
 
     const ratingValues = Object.values(ratingsObj);
     const avg = ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length;
+    const titleOrName = selectedMedia.title || selectedMedia.name || "Sem título";
+    const releaseDate = selectedMedia.release_date || selectedMedia.first_air_date || "";
 
-    const newEval: EvaluatedMovie = {
-      id: selectedMovie.id,
-      title: selectedMovie.title,
-      poster_path: selectedMovie.poster_path,
-      release_date: selectedMovie.release_date,
+    const newEval: EvaluatedItem = {
+      id: selectedMedia.id,
+      title: titleOrName,
+      media_type: selectedMedia.media_type || "movie",
+      poster_path: selectedMedia.poster_path,
+      release_date: releaseDate,
       ratings: ratingsObj,
       averageRating: parseFloat(avg.toFixed(1)),
       reviews: reviewsArr,
     };
 
-    setEvaluatedList((prev) => [newEval, ...prev.filter((m) => m.id !== selectedMovie.id)]);
-    setSelectedMovie(null);
-    setEditingMovieId(null);
+    setEvaluatedList((prev) => [newEval, ...prev.filter((m) => m.id !== selectedMedia.id)]);
+    setSelectedMedia(null);
+    setEditingMediaId(null);
     setReviewText("");
     setPartnerReviewText("");
     setActiveView("podio");
   };
 
-  const currentDisplayList = searchQuery.length >= 3 ? searchResults : trendingMovies;
+  const currentDisplayList = searchQuery.length >= 3 ? searchResults : trendingMedia;
   const sortedPodiumList = [...evaluatedList].sort((a, b) => b.averageRating - a.averageRating);
   const firstPlace = sortedPodiumList[0];
   const secondPlace = sortedPodiumList[1];
@@ -247,33 +270,38 @@ export default function Home() {
       }}
     >
       <style>{`
-        .retro-grid-container {
+        .retro-grid-bg {
           position: fixed;
           inset: 0;
           z-index: 0;
           pointer-events: none;
           overflow: hidden;
-          opacity: 0.35;
         }
-        .retro-grid-plane {
+        .retro-grid-lines {
           position: absolute;
           inset: -100%;
           background-image: 
-            linear-gradient(to right, rgba(236, 72, 153, 0.3) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(236, 72, 153, 0.3) 1px, transparent 1px);
-          background-size: 50px 50px;
-          transform: perspective(600px) rotateX(60deg);
-          animation: grid-slide 12s linear infinite;
+            linear-gradient(to right, rgba(236, 72, 153, 0.2) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(236, 72, 153, 0.2) 1px, transparent 1px);
+          background-size: 60px 60px;
+          transform: perspective(500px) rotateX(65deg);
+          animation: grid-scroll 15s linear infinite;
           transform-origin: 50% 0;
         }
-        @keyframes grid-slide {
-          0% { transform: perspective(600px) rotateX(60deg) translateY(0); }
-          100% { transform: perspective(600px) rotateX(60deg) translateY(50px); }
+        .retro-grid-overlay {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 50% 40%, rgba(6, 9, 19, 0.85) 20%, rgba(6, 9, 19, 0.98) 100%);
+        }
+        @keyframes grid-scroll {
+          0% { transform: perspective(500px) rotateX(65deg) translateY(0); }
+          100% { transform: perspective(500px) rotateX(65deg) translateY(60px); }
         }
       `}</style>
 
-      <div className="retro-grid-container">
-        <div className="retro-grid-plane" />
+      <div className="retro-grid-bg">
+        <div className="retro-grid-lines" />
+        <div className="retro-grid-overlay" />
       </div>
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", position: "relative", zIndex: 10 }}>
@@ -293,19 +321,16 @@ export default function Home() {
                 DITO & FEITO
               </h1>
               <p style={{ color: "#22d3ee", fontSize: "1.1rem", margin: 0, letterSpacing: "2px", fontWeight: "600" }}>
-                AVALIE SEUS FILMES
+                AVALIAÇÕES DE FILMES E SÉRIES
               </p>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem", width: "100%" }}>
               
               <button
-                onClick={() => {
-                  setSelectedMode("solo");
-                  setIsRoomJoined(true);
-                }}
+                onClick={() => setSelectedMode("solo")}
                 style={{
-                  backgroundColor: "rgba(15, 23, 42, 0.9)",
+                  backgroundColor: "rgba(15, 23, 42, 0.95)",
                   border: "1px solid rgba(236, 72, 153, 0.5)",
                   borderRadius: "1.5rem",
                   padding: "1.75rem 1.25rem",
@@ -324,12 +349,9 @@ export default function Home() {
               </button>
 
               <button
-                onClick={() => {
-                  setSelectedMode("duo");
-                  setIsRoomJoined(false);
-                }}
+                onClick={() => setSelectedMode("duo")}
                 style={{
-                  backgroundColor: "rgba(15, 23, 42, 0.9)",
+                  backgroundColor: "rgba(15, 23, 42, 0.95)",
                   border: "1px solid rgba(34, 211, 238, 0.5)",
                   borderRadius: "1.5rem",
                   padding: "1.75rem 1.25rem",
@@ -348,12 +370,9 @@ export default function Home() {
               </button>
 
               <button
-                onClick={() => {
-                  setSelectedMode("grupo");
-                  setIsRoomJoined(false);
-                }}
+                onClick={() => setSelectedMode("grupo")}
                 style={{
-                  backgroundColor: "rgba(15, 23, 42, 0.9)",
+                  backgroundColor: "rgba(15, 23, 42, 0.95)",
                   border: "1px solid rgba(234, 179, 8, 0.5)",
                   borderRadius: "1.5rem",
                   padding: "1.75rem 1.25rem",
@@ -375,7 +394,7 @@ export default function Home() {
           </div>
         ) : !isRoomJoined ? (
 
-          /* ================= 2. TELA DE CRIAR / DIGITAR CÓDIGO DA SALA ================= */
+          /* ================= 2. TELA DE IDENTIFICAÇÃO E CÓDIGO DA SALA ================= */
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "75vh", justifyContent: "center", gap: "1.5rem" }}>
             <button
               onClick={() => setSelectedMode(null)}
@@ -395,42 +414,32 @@ export default function Home() {
                 textAlign: "center",
                 display: "flex",
                 flexDirection: "column",
-                gap: "1.5rem",
+                gap: "1.25rem",
                 boxShadow: "0 0 30px rgba(34, 211, 238, 0.2)",
               }}
             >
               <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.5rem" }}>
-                Criar / Entrar na Sala ({selectedMode === "duo" ? "Casalzinho" : "Grupinho"})
+                Identificação da Sessão ({selectedMode === "duo" ? "Casalzinho" : selectedMode === "grupo" ? "Grupinho" : "Solo"})
               </h2>
-              <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: 0, lineHeight: "1.4" }}>
-                Defina um código exclusivo para sua sala ou digite o código enviado pelo host.
-              </p>
 
-              {/* QR Code Dinâmico baseado no código digitado */}
-              <div style={{ width: "170px", height: "170px", backgroundColor: "#020617", border: "2px solid #22d3ee", borderRadius: "1rem", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
-                <QrCode style={{ width: "85px", height: "85px", color: "#22d3ee" }} />
-                <span style={{ fontSize: "0.8rem", color: "#22d3ee", fontFamily: "monospace", fontWeight: "bold" }}>
-                  {customRoomCode ? customRoomCode : "DIGITE O CÓDIGO"}
-                </span>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-                <div style={{ position: "relative" }}>
-                  <KeyRound style={{ position: "absolute", left: "1rem", top: "0.85rem", width: "1.1rem", height: "1.1rem", color: "#22d3ee" }} />
+              {/* Formulário de Nomes */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", textAlign: "left" }}>
+                <div>
+                  <label style={{ fontSize: "0.75rem", color: "#ec4899", fontWeight: "bold", display: "block", marginBottom: "0.3rem" }}>
+                    Seu Nome:
+                  </label>
                   <input
                     type="text"
-                    placeholder="ESCREVA O CÓDIGO DA SALA (EX: CASAL123)"
-                    value={customRoomCode}
-                    onChange={(e) => setCustomRoomCode(e.target.value.toUpperCase())}
+                    placeholder="Digite seu nome..."
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
                     style={{
                       width: "100%",
                       backgroundColor: "#020617",
                       border: "1px solid #334155",
                       borderRadius: "0.75rem",
-                      padding: "0.75rem 1rem 0.75rem 2.75rem",
-                      textAlign: "center",
+                      padding: "0.75rem",
                       color: "#fff",
-                      textTransform: "uppercase",
                       outline: "none",
                       fontSize: "0.85rem",
                       boxSizing: "border-box",
@@ -438,36 +447,97 @@ export default function Home() {
                   />
                 </div>
 
-                <button
-                  onClick={handleGenerateRandomCode}
-                  style={{ background: "none", border: "none", color: "#22d3ee", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline" }}
-                >
-                  ⚡ Gerar código aleatório
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!customRoomCode.trim()) {
-                      alert("Por favor, digite ou gere um código para a sala.");
-                      return;
-                    }
-                    setIsRoomJoined(true);
-                  }}
-                  style={{
-                    backgroundColor: "#06b6d4",
-                    color: "#020617",
-                    border: "none",
-                    borderRadius: "0.75rem",
-                    padding: "0.9rem",
-                    fontWeight: "bold",
-                    fontSize: "0.9rem",
-                    cursor: "pointer",
-                    boxShadow: "0 0 15px rgba(6, 182, 212, 0.4)",
-                  }}
-                >
-                  INICIAR SESSÃO CONJUNTA
-                </button>
+                {(selectedMode === "duo" || selectedMode === "grupo") && (
+                  <div>
+                    <label style={{ fontSize: "0.75rem", color: "#22d3ee", fontWeight: "bold", display: "block", marginBottom: "0.3rem" }}>
+                      Nome do(a) Acompanhante / Parceiro(a):
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Digite o nome..."
+                      value={partnerName}
+                      onChange={(e) => setPartnerName(e.target.value)}
+                      style={{
+                        width: "100%",
+                        backgroundColor: "#020617",
+                        border: "1px solid #334155",
+                        borderRadius: "0.75rem",
+                        padding: "0.75rem",
+                        color: "#fff",
+                        outline: "none",
+                        fontSize: "0.85rem",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                )}
               </div>
+
+              {/* Se for Duo ou Grupo, exibe Código da Sala */}
+              {(selectedMode === "duo" || selectedMode === "grupo") && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem", borderTop: "1px solid #1e293b", paddingTop: "1rem" }}>
+                  <div style={{ width: "140px", height: "140px", backgroundColor: "#020617", border: "2px solid #22d3ee", borderRadius: "1rem", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+                    <QrCode style={{ width: "70px", height: "70px", color: "#22d3ee" }} />
+                    <span style={{ fontSize: "0.75rem", color: "#22d3ee", fontFamily: "monospace", fontWeight: "bold" }}>
+                      {customRoomCode ? customRoomCode : "CÓDIGO SALA"}
+                    </span>
+                  </div>
+
+                  <div style={{ position: "relative" }}>
+                    <KeyRound style={{ position: "absolute", left: "1rem", top: "0.85rem", width: "1.1rem", height: "1.1rem", color: "#22d3ee" }} />
+                    <input
+                      type="text"
+                      placeholder="CÓDIGO DA SALA (EX: DISCO123)"
+                      value={customRoomCode}
+                      onChange={(e) => setCustomRoomCode(e.target.value.toUpperCase())}
+                      style={{
+                        width: "100%",
+                        backgroundColor: "#020617",
+                        border: "1px solid #334155",
+                        borderRadius: "0.75rem",
+                        padding: "0.75rem 1rem 0.75rem 2.75rem",
+                        textAlign: "center",
+                        color: "#fff",
+                        textTransform: "uppercase",
+                        outline: "none",
+                        fontSize: "0.85rem",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleGenerateRandomCode}
+                    style={{ background: "none", border: "none", color: "#22d3ee", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline" }}
+                  >
+                    ⚡ Gerar código aleatório
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  if ((selectedMode === "duo" || selectedMode === "grupo") && !customRoomCode.trim()) {
+                    alert("Por favor, digite ou gere um código para a sala.");
+                    return;
+                  }
+                  setIsRoomJoined(true);
+                }}
+                style={{
+                  backgroundColor: "#06b6d4",
+                  color: "#020617",
+                  border: "none",
+                  borderRadius: "0.75rem",
+                  padding: "0.9rem",
+                  fontWeight: "bold",
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  boxShadow: "0 0 15px rgba(6, 182, 212, 0.4)",
+                  marginTop: "0.5rem",
+                }}
+              >
+                ENTRAR NA SESSÃO
+              </button>
             </div>
           </div>
 
@@ -476,7 +546,7 @@ export default function Home() {
           /* ================= 3. ÁREA PRINCIPAL ================= */
           <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
             
-            <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(236,72,153,0.4)", padding: "1rem 1.25rem", borderRadius: "1.5rem" }}>
+            <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(236,72,153,0.4)", padding: "1rem 1.25rem", borderRadius: "1.5rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                 <button
                   onClick={() => setSelectedMode(null)}
@@ -495,7 +565,7 @@ export default function Home() {
 
               <nav style={{ display: "flex", gap: "0.4rem", backgroundColor: "#020617", padding: "0.3rem", borderRadius: "1rem" }}>
                 {[
-                  { id: "busca", label: "Buscar Filmes", icon: Search },
+                  { id: "busca", label: "Buscar", icon: Search },
                   { id: "biblioteca", label: "Biblioteca", icon: BookOpen },
                   { id: "podio", label: "Pódio", icon: Trophy },
                 ].map((tab) => {
@@ -526,19 +596,19 @@ export default function Home() {
               </nav>
             </header>
 
-            {/* --- ABA BUSCA DE FILMES --- */}
+            {/* --- ABA BUSCA DE FILMES E SÉRIES --- */}
             {activeView === "busca" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                 <div style={{ position: "relative", width: "100%" }}>
                   <Search style={{ position: "absolute", left: "1.2rem", top: "1.1rem", width: "1.2rem", height: "1.2rem", color: "#ec4899" }} />
                   <input
                     type="text"
-                    placeholder="Digite o nome do filme (ex: Matrix, Pulp Fiction)..."
+                    placeholder="Pesquise um filme ou série (ex: Breaking Bad, Interstellar)..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     style={{
                       width: "100%",
-                      backgroundColor: "rgba(15, 23, 42, 0.9)",
+                      backgroundColor: "rgba(15, 23, 42, 0.95)",
                       border: "1px solid rgba(236,72,153,0.5)",
                       borderRadius: "1.25rem",
                       padding: "1rem 1rem 1rem 3rem",
@@ -552,83 +622,100 @@ export default function Home() {
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#94a3b8" }}>
-                  <span>{searchQuery.length >= 3 ? `RESULTADOS PARA "${searchQuery.toUpperCase()}"` : "FILMES POPULARES EM ALTA"}</span>
+                  <span>{searchQuery.length >= 3 ? `SUGESTÕES PARA "${searchQuery.toUpperCase()}"` : "FILMES E SÉRIES EM ALTA DA SEMANA"}</span>
                   <span>CLIQUE NA CAPA PARA AVALIAR</span>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: "1.25rem" }}>
-                  {currentDisplayList.map((movie) => (
-                    <div
-                      key={movie.id}
-                      onClick={() => {
-                        setSelectedMovie(movie);
-                        setEditingMovieId(null);
-                        setRating(8);
-                        setReviewText("");
-                        setPartnerRating(7.5);
-                        setPartnerReviewText("");
-                      }}
-                      style={{
-                        backgroundColor: "rgba(15, 23, 42, 0.8)",
-                        border: "1px solid #1e293b",
-                        borderRadius: "1rem",
-                        padding: "0.75rem",
-                        cursor: "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.5rem",
-                      }}
-                    >
-                      <div style={{ aspectRatio: "2/3", width: "100%", backgroundColor: "#020617", borderRadius: "0.75rem", overflow: "hidden", position: "relative" }}>
-                        {movie.poster_path ? (
-                          <img
-                            src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                            alt={movie.title}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          />
-                        ) : (
-                          <Film style={{ width: "2rem", height: "2rem", margin: "auto", color: "#475569" }} />
-                        )}
-                        <span style={{ position: "absolute", top: "0.4rem", right: "0.4rem", backgroundColor: "rgba(2,6,23,0.85)", border: "1px solid rgba(234,179,8,0.5)", color: "#eab308", fontSize: "0.7rem", fontWeight: "bold", padding: "0.15rem 0.4rem", borderRadius: "0.4rem" }}>
-                          ★ {movie.vote_average ? movie.vote_average.toFixed(1) : "N/A"}
+                  {currentDisplayList.map((media) => {
+                    const isTv = media.media_type === "tv" || (!media.title && !!media.name);
+                    const titleText = media.title || media.name || "Sem título";
+                    const yearText = (media.release_date || media.first_air_date)?.split("-")[0] || "Ano N/A";
+
+                    return (
+                      <div
+                        key={media.id}
+                        onClick={() => {
+                          setSelectedMedia({ ...media, media_type: isTv ? "tv" : "movie" });
+                          setEditingMediaId(null);
+                          // Nota zerada ao abrir novo filme
+                          setRating(0);
+                          setReviewText("");
+                          setPartnerRating(0);
+                          setPartnerReviewText("");
+                        }}
+                        style={{
+                          backgroundColor: "rgba(15, 23, 42, 0.85)",
+                          border: "1px solid #1e293b",
+                          borderRadius: "1rem",
+                          padding: "0.75rem",
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        <div style={{ aspectRatio: "2/3", width: "100%", backgroundColor: "#020617", borderRadius: "0.75rem", overflow: "hidden", position: "relative" }}>
+                          {media.poster_path ? (
+                            <img
+                              src={`https://image.tmdb.org/t/p/w500${media.poster_path}`}
+                              alt={titleText}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <Film style={{ width: "2rem", height: "2rem", margin: "auto", color: "#475569" }} />
+                          )}
+                          
+                          <span style={{ position: "absolute", top: "0.4rem", left: "0.4rem", backgroundColor: isTv ? "rgba(34,211,238,0.85)" : "rgba(236,72,153,0.85)", color: "#020617", fontSize: "0.65rem", fontWeight: "bold", padding: "0.15rem 0.35rem", borderRadius: "0.3rem", display: "flex", alignItems: "center", gap: "0.2rem" }}>
+                            {isTv ? <Tv style={{ width: "0.6rem", height: "0.6rem" }} /> : <Film style={{ width: "0.6rem", height: "0.6rem" }} />}
+                            {isTv ? "SÉRIE" : "FILME"}
+                          </span>
+
+                          <span style={{ position: "absolute", top: "0.4rem", right: "0.4rem", backgroundColor: "rgba(2,6,23,0.85)", border: "1px solid rgba(234,179,8,0.5)", color: "#eab308", fontSize: "0.7rem", fontWeight: "bold", padding: "0.15rem 0.4rem", borderRadius: "0.4rem" }}>
+                            ★ {media.vote_average ? media.vote_average.toFixed(1) : "N/A"}
+                          </span>
+                        </div>
+
+                        <h3 style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#f8fafc", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {titleText}
+                        </h3>
+                        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                          {yearText}
                         </span>
                       </div>
-
-                      <h3 style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#f8fafc", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {movie.title}
-                      </h3>
-                      <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                        {movie.release_date?.split("-")[0] || "Ano N/A"}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* --- ABA BIBLIOTECA (COM BOTÕES DE EDITAR E DELETAR) --- */}
+            {/* --- ABA BIBLIOTECA --- */}
             {activeView === "biblioteca" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.4rem" }}>Biblioteca de Filmes Avaliados</h2>
+                <h2 style={{ color: "#22d3ee", margin: 0, fontSize: "1.4rem" }}>Biblioteca de Filmes & Séries</h2>
                 
                 {evaluatedList.length === 0 ? (
-                  <div style={{ backgroundColor: "rgba(15, 23, 42, 0.6)", padding: "2.5rem", borderRadius: "1.5rem", textAlign: "center", color: "#94a3b8" }}>
+                  <div style={{ backgroundColor: "rgba(15, 23, 42, 0.8)", padding: "2.5rem", borderRadius: "1.5rem", textAlign: "center", color: "#94a3b8" }}>
                     <BookOpen style={{ width: "2.5rem", height: "2.5rem", margin: "0 auto 1rem auto", color: "#ec4899" }} />
-                    <p style={{ margin: 0 }}>Nenhum filme avaliado ainda.</p>
-                    <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Pesquise um filme na aba "Buscar Filmes" para dar sua nota!</span>
+                    <p style={{ margin: 0 }}>Nenhum filme ou série avaliado ainda.</p>
+                    <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Pesquise na aba "Buscar" para dar sua nota!</span>
                   </div>
                 ) : (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem" }}>
                     {evaluatedList.map((item) => (
-                      <div key={item.id} style={{ backgroundColor: "rgba(15, 23, 42, 0.9)", border: "1px solid rgba(34, 211, 238, 0.3)", padding: "1rem", borderRadius: "1.25rem", display: "flex", gap: "1rem", position: "relative" }}>
+                      <div key={item.id} style={{ backgroundColor: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(34, 211, 238, 0.3)", padding: "1rem", borderRadius: "1.25rem", display: "flex", gap: "1rem", position: "relative" }}>
                         
                         <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title} style={{ width: "75px", height: "110px", borderRadius: "0.6rem", objectFit: "cover" }} />
                         
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                            <h3 style={{ margin: 0, fontSize: "1rem", color: "#fff" }}>{item.title}</h3>
+                            <div>
+                              <h3 style={{ margin: 0, fontSize: "1rem", color: "#fff" }}>{item.title}</h3>
+                              <span style={{ fontSize: "0.65rem", color: item.media_type === "tv" ? "#22d3ee" : "#ec4899", fontWeight: "bold" }}>
+                                {item.media_type === "tv" ? "SÉRIE" : "FILME"}
+                              </span>
+                            </div>
                             
-                            {/* Botões de Ação: Editar / Deletar */}
                             <div style={{ display: "flex", gap: "0.4rem" }}>
                               <button
                                 onClick={() => handleEditEvaluation(item)}
@@ -640,7 +727,7 @@ export default function Home() {
                               <button
                                 onClick={() => handleDeleteEvaluation(item.id)}
                                 style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "0.2rem" }}
-                                title="Excluir Filme"
+                                title="Excluir"
                               >
                                 <Trash2 style={{ width: "0.9rem", height: "0.9rem" }} />
                               </button>
@@ -679,12 +766,12 @@ export default function Home() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2.5rem", textAlign: "center" }}>
                 <div>
                   <h2 style={{ color: "#eab308", fontSize: "1.8rem", margin: 0, fontWeight: "bold" }}>PÓDIO DA SESSÃO</h2>
-                  <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "0.25rem" }}>Classificação baseada na nota média</p>
+                  <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "0.25rem" }}>Classificação geral por nota média</p>
                 </div>
 
                 {evaluatedList.length === 0 ? (
                   <div style={{ color: "#64748b", fontSize: "0.9rem" }}>
-                    Nenhum filme no pódio ainda.
+                    Nenhum título no pódio ainda.
                   </div>
                 ) : (
                   <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", justifyContent: "center", width: "100%", maxWidth: "600px" }}>
@@ -728,30 +815,33 @@ export default function Home() {
           </div>
         )}
 
-        {/* ================= MODAL DE AVALIAÇÃO / EDIÇÃO DO FILME ================= */}
-        {selectedMovie && (
+        {/* ================= MODAL DE AVALIAÇÃO DO FILME / SÉRIE ================= */}
+        {selectedMedia && (
           <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(2,6,23,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 100 }}>
             <div style={{ backgroundColor: "#0f172a", border: "1px solid rgba(236,72,153,0.5)", borderRadius: "1.5rem", padding: "1.5rem", maxWidth: "520px", width: "100%", display: "flex", flexDirection: "column", gap: "1.25rem", position: "relative", boxSizing: "border-box" }}>
               
-              <button onClick={() => setSelectedMovie(null)} style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
+              <button onClick={() => setSelectedMedia(null)} style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
                 <X style={{ width: "1.25rem", height: "1.25rem" }} />
               </button>
 
               <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
-                <img src={`https://image.tmdb.org/t/p/w500${selectedMovie.poster_path}`} alt={selectedMovie.title} style={{ width: "90px", height: "135px", borderRadius: "0.6rem", objectFit: "cover" }} />
+                <img src={`https://image.tmdb.org/t/p/w500${selectedMedia.poster_path}`} alt={selectedMedia.title || selectedMedia.name} style={{ width: "90px", height: "135px", borderRadius: "0.6rem", objectFit: "cover" }} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", flex: 1 }}>
-                  <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#fff" }}>{selectedMovie.title}</h3>
+                  <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#fff" }}>{selectedMedia.title || selectedMedia.name}</h3>
                   <span style={{ fontSize: "0.75rem", color: "#eab308", fontWeight: "bold" }}>
-                    {editingMovieId ? "Modo de Edição" : `TMDB: ${selectedMovie.vote_average?.toFixed(1) || "N/A"} / 10 ★`}
+                    {editingMediaId ? "Modo de Edição" : `TMDB: ${selectedMedia.vote_average?.toFixed(1) || "N/A"} / 10 ★`}
                   </span>
                   <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: 0, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: "1.3" }}>
-                    {selectedMovie.overview || "Sem sinopse cadastrada."}
+                    {selectedMedia.overview || "Sem sinopse cadastrada."}
                   </p>
                 </div>
               </div>
 
+              {/* Avaliação do Usuário Principal */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold" }}>Nota de {userName}: {rating} / 10 ★</span>
+                <span style={{ fontSize: "0.85rem", color: "#ec4899", fontWeight: "bold" }}>
+                  Nota de {userName.trim() || "Você"}: {rating} / 10 ★
+                </span>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
                     <button key={star} onClick={() => handleStarClick(star, rating, setRating)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
@@ -767,9 +857,12 @@ export default function Home() {
                 />
               </div>
 
+              {/* Avaliação do Parceiro */}
               {(selectedMode === "duo" || selectedMode === "grupo") && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", borderTop: "1px solid #1e293b", paddingTop: "0.75rem" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#22d3ee", fontWeight: "bold" }}>Nota de {partnerName}: {partnerRating} / 10 ★</span>
+                  <span style={{ fontSize: "0.85rem", color: "#22d3ee", fontWeight: "bold" }}>
+                    Nota de {partnerName.trim() || "Parceiro(a)"}: {partnerRating} / 10 ★
+                  </span>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
                       <button key={star} onClick={() => handleStarClick(star, partnerRating, setPartnerRating)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
@@ -778,7 +871,7 @@ export default function Home() {
                     ))}
                   </div>
                   <textarea
-                    placeholder={`Crítica/resenha de ${partnerName} (opcional)...`}
+                    placeholder={`Crítica/resenha de ${partnerName.trim() || "Parceiro(a)"} (opcional)...`}
                     value={partnerReviewText}
                     onChange={(e) => setPartnerReviewText(e.target.value)}
                     style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "0.75rem", padding: "0.75rem", color: "#fff", fontSize: "0.85rem", outline: "none", resize: "none" }}
@@ -787,7 +880,7 @@ export default function Home() {
               )}
 
               <button onClick={handleSaveEvaluation} style={{ backgroundColor: "#db2777", color: "#fff", border: "none", borderRadius: "0.75rem", padding: "0.85rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.9rem" }}>
-                {editingMovieId ? "ATUALIZAR AVALIAÇÃO" : "ENVIAR AVALIAÇÃO"}
+                {editingMediaId ? "ATUALIZAR AVALIAÇÃO" : "ENVIAR AVALIAÇÃO"}
               </button>
             </div>
           </div>
