@@ -4,12 +4,24 @@ import React, { useState, useEffect } from "react";
 import { Crown, Tv, Share2, X, Star, Film, User, Search, Plus, Trash2, Edit2, Check } from "lucide-react";
 
 const PET_AVATARS = [
-  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150", // Cachorro
-  "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150", // Gato
-  "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=150", // Pug
-  "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=150", // Gato fofo
-  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=150", // Cachorro óculos
-  "https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=150"  // Gatinho
+  // Cachorros (2)
+  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150",
+  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=150",
+  // Gatos (2)
+  "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150",
+  "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=150",
+  // Cavalos (2)
+  "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=150",
+  "https://images.unsplash.com/photo-1598880940371-c756e015fea1?w=150",
+  // Lontras (2)
+  "https://images.unsplash.com/photo-1559827291-72ee739d0d9a?w=150",
+  "https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=150",
+  // Passarinhos (2)
+  "https://images.unsplash.com/photo-1444464666168-49d633b86797?w=150",
+  "https://images.unsplash.com/photo-1522836924256-6062b95cf989?w=150",
+  // Coelhinhos (2)
+  "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=150",
+  "https://images.unsplash.com/photo-1535268647177-201be8c7589f?w=150"
 ];
 
 export default function Page() {
@@ -324,9 +336,9 @@ export default function Page() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "100%" }}>
                 <span style={{ fontSize: "0.8rem", color: "#22d3ee", fontWeight: "bold" }}>Escolha seu Avatar de Bichinho:</span>
-                <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", flexWrap: "wrap" }}>
                   {PET_AVATARS.map((url, i) => (
-                    <img key={i} src={url} alt="Pet Preset" onClick={() => setUserAvatar(url)} style={{ width: "55px", height: "55px", borderRadius: "50%", objectFit: "cover", cursor: "pointer", border: userAvatar === url ? "3px solid #22d3ee" : "2px solid transparent" }} />
+                    <img key={i} src={url} alt="Pet Preset" onClick={() => setUserAvatar(url)} style={{ width: "50px", height: "50px", borderRadius: "50%", objectFit: "cover", cursor: "pointer", border: userAvatar === url ? "3px solid #22d3ee" : "2px solid transparent" }} />
                   ))}
                 </div>
               </div>
