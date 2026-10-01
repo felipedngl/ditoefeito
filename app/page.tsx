@@ -124,7 +124,7 @@ export default function Home() {
             Seu cinema. Suas regras.
           </div>
 
-          <h1 className="font-pixel text-3xl leading-relaxed text-white drop-shadow-[0_0_25px_rgba(236,72,153,0.35)] sm:text-5xl sm:leading-relaxed">
+          <h1 className="font-pixel text-3xl leading-relaxed bg-red-500 text-black drop-shadow-[0_0_25px_rgba(236,72,153,0.35)] sm:text-5xl sm:leading-relaxed">
             DITO
             <span className="text-pink-400"> & </span>
             FEITO
