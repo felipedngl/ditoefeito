@@ -1,80 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600;700&family=VT323&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;600;700&family=VT323&display=swap');
-
 :root {
+  --bg: #060812;
+  --bg-soft: #0b0f1c;
+  --surface: #101522;
+  --surface-light: #151b2b;
+
+  --pink: #ff007f;
+  --pink-soft: #ff4da6;
+  --cyan: #00f0ff;
+  --purple: #8b5cf6;
+  --yellow: #ffd84d;
+
+  --text: #f8fafc;
+  --text-soft: #a7afc2;
+  --text-muted: #697187;
+
+  --border: rgba(255, 255, 255, 0.09);
+
   --font-pixel: 'Press Start 2P', cursive;
   --font-retro: 'VT323', monospace;
   --font-main: 'Rajdhani', sans-serif;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--bg);
+}
+
 body {
-  background-color: #060913;
-  color: #f8fafc;
-  font-family: var(--font-main);
   min-height: 100vh;
   margin: 0;
-  padding: 0;
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(255, 0, 127, 0.15) 0%, transparent 60%),
-    linear-gradient(to bottom, #060913, #03050a);
-  background-attachment: fixed;
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(255, 0, 127, 0.18),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 100% 30%,
+      rgba(0, 240, 255, 0.08),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      #060812 0%,
+      #04060d 100%
+    );
+  color: var(--text);
+  font-family: var(--font-main);
 }
 
-.font-pixel { font-family: var(--font-pixel); }
-.font-retro { font-family: var(--font-retro); }
+/* ================================
+   FONTES
+================================ */
 
-/* Glows Retro/Neon */
-.text-glow-pink { text-shadow: 0 0 10px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.4); }
-.text-glow-blue { text-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 240, 255, 0.4); }
-.text-glow-gold { text-shadow: 0 0 10px rgba(234, 179, 8, 0.8), 0 0 20px rgba(234, 179, 8, 0.4); }
-
-.box-glow-pink { box-shadow: 0 0 20px rgba(255, 0, 127, 0.25), inset 0 0 15px rgba(255, 0, 127, 0.08); }
-.box-glow-blue { box-shadow: 0 0 20px rgba(0, 240, 255, 0.25), inset 0 0 15px rgba(0, 240, 255, 0.08); }
-.box-glow-gold { box-shadow: 0 0 25px rgba(234, 179, 8, 0.35), inset 0 0 15px rgba(234, 179, 8, 0.1); }
-
-.card-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.card-hover:hover {
-  transform: translateY(-4px) scale(1.02);
+.font-pixel {
+  font-family: var(--font-pixel);
 }
 
-/* Animação e Estilo do Retro Grid */
-.retro-grid-bg {
+.font-retro {
+  font-family: var(--font-retro);
+}
+
+.font-main {
+  font-family: var(--font-main);
+}
+
+/* ================================
+   GRID RETRÔ
+================================ */
+
+.retro-grid {
   position: fixed;
   inset: 0;
-  z-index: 0;
-  pointer-events: none;
+  z-index: -1;
   overflow: hidden;
-  opacity: 0.65;
+  pointer-events: none;
 }
 
-.retro-grid-lines {
+.retro-grid::before {
+  content: "";
   position: absolute;
-  inset: -100%;
-  background-image: 
-    linear-gradient(to right, rgba(236, 72, 153, 0.25) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(236, 72, 153, 0.25) 1px, transparent 1px);
-  background-size: 60px 60px;
-  transform: perspective(500px) rotateX(60deg);
-  animation: grid-move 15s linear infinite;
-  transform-origin: 50% 0;
+  left: -50%;
+  bottom: -25%;
+  width: 200%;
+  height: 75%;
+
+  background-image:
+    linear-gradient(
+      rgba(255, 0, 127, 0.16) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 127, 0.16) 1px,
+      transparent 1px
+    );
+
+  background-size: 70px 45px;
+
+  transform:
+    perspective(500px)
+    rotateX(60deg);
+
+  transform-origin: center bottom;
+
+  mask-image: linear-gradient(
+    to top,
+    black,
+    transparent 85%
+  );
 }
 
-@keyframes grid-move {
-  0% {
-    transform: perspective(500px) rotateX(60deg) translateY(0);
-  }
+/* ================================
+   GLOW
+================================ */
+
+.glow-pink {
+  text-shadow:
+    0 0 8px rgba(255, 0, 127, 0.8),
+    0 0 24px rgba(255, 0, 127, 0.4);
+}
+
+.glow-cyan {
+  text-shadow:
+    0 0 8px rgba(0, 240, 255, 0.8),
+    0 0 24px rgba(0, 240, 255, 0.4);
+}
+
+.glow-yellow {
+  text-shadow:
+    0 0 8px rgba(255, 216, 77, 0.8),
+    0 0 24px rgba(255, 216, 77, 0.4);
+}
+
+/* ================================
+   SCROLLBAR
+================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050711;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252c40;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #39435d;
+}
+
+/* ================================
+   SELEÇÃO
+================================ */
+
+::selection {
+  background: rgba(255, 0, 127, 0.35);
+  color: white;
+}
+
+/* ================================
+   BOTÕES
+================================ */
+
+button {
+  font-family: inherit;
+}
+
+/* ================================
+   ANIMAÇÕES
+================================ */
+
+@keyframes float {
+  0%,
   100% {
-    transform: perspective(500px) rotateX(60deg) translateY(60px);
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
   }
 }
 
-.retro-grid-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(236, 72, 153, 0.3) 0%, rgba(34, 211, 238, 0.15) 50%, transparent 80%);
+@keyframes pulse-neon {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-neon {
+  animation: pulse-neon 2s ease-in-out infinite;
 }
