@@ -1,15 +1,17 @@
+import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Dito & Feito",
-  description: "Avalie filmes e séries em dupla ou grupo",
+  description:
+    "Seu cantinho para avaliar filmes e séries com quem você gosta.",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="pt-BR">
       <body>{children}</body>
