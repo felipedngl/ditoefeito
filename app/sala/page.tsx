@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-
+import {
+  useEffect,
+  useState,
+} from "react";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import {
   ensureAnonymousUser,
   getUserProfile,
@@ -15,12 +20,25 @@ import {
 
 export default function EntrarSalaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+const [code, setCode] = useState("");
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState("");
 
-  async function handleJoin() {
+useEffect(() => {
+  const queryCode = searchParams
+    .get("code")
+    ?.toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 6);
+
+  if (queryCode) {
+    setCode(queryCode);
+  }
+}, [searchParams]);
+
+async function handleJoin() {
     const normalized = code
       .trim()
       .toUpperCase();
