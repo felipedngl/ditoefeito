@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -43,7 +43,7 @@ const modeInfo: Record<
     title: string;
     description: string;
     icon: typeof UserRound;
-    color: string;
+    color: "pink" | "cyan" | "purple";
   }
 > = {
   solo: {
@@ -70,7 +70,7 @@ function getRandomAnimal() {
   return animals[Math.floor(Math.random() * animals.length)];
 }
 
-export default function ConfigurarPage() {
+function ConfigurarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -94,7 +94,11 @@ export default function ConfigurarPage() {
 
   const usernamePreview = useMemo(() => {
     return username.trim()
-      ? username.trim().toLowerCase().replace(/\s+/g, "_")
+      ? username
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "_")
+          .replace(/[^a-z0-9_]/g, "")
       : "seu_usuario";
   }, [username]);
 
@@ -130,7 +134,6 @@ export default function ConfigurarPage() {
   return (
     <main className="retro-grid min-h-screen overflow-hidden">
       <div className="relative z-10 min-h-screen">
-        {/* HEADER */}
         <header className="border-b border-white/10 bg-black/20 backdrop-blur-md">
           <div className="mx-auto flex max-w-5xl items-center px-6 py-5">
             <button
@@ -150,10 +153,8 @@ export default function ConfigurarPage() {
           </div>
         </header>
 
-        {/* CONTENT */}
         <section className="mx-auto max-w-5xl px-6 pb-20 pt-14 sm:pt-20">
           <div className="mx-auto max-w-2xl">
-            {/* INTRO */}
             <div className="text-center">
               <div
                 className={`mx-auto flex h-16 w-16 items-center justify-center border ${
@@ -196,9 +197,7 @@ export default function ConfigurarPage() {
               </p>
             </div>
 
-            {/* FORM */}
             <div className="mt-14 space-y-8">
-              {/* USERNAME */}
               <div className="border border-white/10 bg-white/[0.025] p-6 sm:p-8">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -229,7 +228,6 @@ export default function ConfigurarPage() {
                 </p>
               </div>
 
-              {/* AVATAR */}
               <div className="border border-white/10 bg-white/[0.025] p-6 sm:p-8">
                 <div>
                   <p className="font-pixel text-[9px] text-white/70">
@@ -257,7 +255,6 @@ export default function ConfigurarPage() {
                 </div>
               </div>
 
-              {/* COUPLE / GROUP NAME */}
               {mode !== "solo" && (
                 <div className="border border-white/10 bg-white/[0.025] p-6 sm:p-8">
                   <div>
@@ -274,9 +271,7 @@ export default function ConfigurarPage() {
 
                   <input
                     value={spaceName}
-                    onChange={(event) =>
-                      setSpaceName(event.target.value)
-                    }
+                    onChange={(event) => setSpaceName(event.target.value)}
                     maxLength={40}
                     placeholder={
                       mode === "couple"
@@ -288,7 +283,6 @@ export default function ConfigurarPage() {
                 </div>
               )}
 
-              {/* SUMMARY */}
               <div className="border border-white/5 bg-black/20 p-6">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center border border-white/10 bg-white/5 text-2xl">
@@ -325,7 +319,6 @@ export default function ConfigurarPage() {
                 </div>
               </div>
 
-              {/* CONTINUE */}
               <button
                 type="button"
                 onClick={handleContinue}
@@ -351,5 +344,21 @@ export default function ConfigurarPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function ConfigurarPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="retro-grid flex min-h-screen items-center justify-center">
+          <div className="font-pixel text-[9px] text-pink-300">
+            CARREGANDO...
+          </div>
+        </main>
+      }
+    >
+      <ConfigurarContent />
+    </Suspense>
   );
 }
