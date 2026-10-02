@@ -1,9 +1,9 @@
+```tsx
 "use client";
 
 import {
   Suspense,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
@@ -11,15 +11,6 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-
-import {
-  Dices,
-  Film,
-  RefreshCw,
-  Sparkles,
-  Users,
-  UserRound,
-} from "lucide-react";
 
 import {
   AVATARS,
@@ -31,88 +22,54 @@ import {
   type ProfileMode,
 } from "@/lib/auth";
 
-type ModeInfo = {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-};
-
-const MODE_INFO: Record<ProfileMode, ModeInfo> = {
-  solo: {
-    title: "SOZINHO",
-    description:
-      "Sua sessão pessoal. Avalie filmes e séries no seu ritmo.",
-    icon: <UserRound size={25} />,
-  },
-
-  couple: {
-    title: "CASALZINHO",
-    description:
-      "Crie um espaço para você e mais uma pessoa.",
-    icon: <Users size={25} />,
-  },
-
-  group: {
-    title: "GRUPINHO",
-    description:
-      "Monte um grupo de 3 até 10 pessoas.",
-    icon: <Sparkles size={25} />,
-  },
-};
+import { createSpace } from "@/lib/spaces";
 
 function ConfigurarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const requestedMode = searchParams.get("mode");
+
+  const [mode, setMode] = useState<ProfileMode>(
+    requestedMode === "couple"
+      ? "couple"
+      : requestedMode === "group"
+        ? "group"
+        : "solo"
+  );
+
   const [username, setUsername] = useState("");
   const [avatar, setAvatar] = useState("");
-  const [mode, setMode] =
-    useState<ProfileMode>("solo");
   const [spaceName, setSpaceName] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const queryMode = searchParams.get("modo");
-
-    if (
-      queryMode === "solo" ||
-      queryMode === "couple" ||
-      queryMode === "group"
-    ) {
-      setMode(queryMode);
-    }
-
     setUsername(createUsername());
     setAvatar(randomAvatar());
-  }, [searchParams]);
+  }, []);
 
-  const usernamePreview = useMemo(
-    () => slugifyUsername(username),
-    [username]
-  );
+  function changeMode(nextMode: ProfileMode) {
+    setMode(nextMode);
+    setError("");
 
-  function handleRandomAvatar() {
-    setAvatar((current) => {
-      let next = randomAvatar();
-
-      while (
-        AVATARS.length > 1 &&
-        next === current
-      ) {
-        next = randomAvatar();
-      }
-
-      return next;
-    });
+    if (nextMode === "solo") {
+      setSpaceName("");
+    }
   }
 
-  function handleRandomUsername() {
+  function sortearNome() {
     setUsername(createUsername());
+  }
+
+  function sortearAvatar() {
+    setAvatar(randomAvatar());
   }
 
   async function handleContinue() {
+    setError("");
+
     const cleanUsername = username.trim();
 
     if (!cleanUsername) {
@@ -120,292 +77,250 @@ function ConfigurarContent() {
       return;
     }
 
-    if (!usernamePreview) {
-      setError("Escolha um nome válido.");
-      return;
-    }
-
-    if (!avatar) {
-      setError("Escolha um avatar.");
-      return;
-    }
-
-    if (
-      (mode === "couple" || mode === "group") &&
-      !spaceName.trim()
-    ) {
-      setError("Digite um nome para o espaço.");
+    if ((mode === "couple" || mode === "group") && !spaceName.trim()) {
+      setError("Dê um nome para a sua sala.");
       return;
     }
 
     try {
       setSaving(true);
-      setError("");
 
       const user = await ensureAnonymousUser();
 
       const profile = {
         username: cleanUsername,
-        usernameSlug: usernamePreview,
+        usernameSlug: slugifyUsername(cleanUsername),
         avatar,
         mode,
-        spaceName:
-          mode === "solo"
-            ? ""
-            : spaceName.trim(),
+        spaceName: spaceName.trim(),
       };
 
       await saveUserProfile(user, profile);
 
       sessionStorage.setItem(
-        "dito-feito-profile-draft",
+        "ditoefeito_profile",
         JSON.stringify(profile)
       );
 
-      /*
-       * Por enquanto, todos entram na área de filmes.
-       *
-       * A sala de espera de casal/grupo será
-       * implementada na próxima etapa.
-       */
-      router.push("/filmes");
-    } catch (err) {
-      console.error(err);
+      if (mode === "solo") {
+        router.push("/filmes");
+        return;
+      }
 
-      setError(
-        "Não foi possível salvar seu perfil. Tente novamente."
+      const space = await createSpace({
+        hostUid: user.uid,
+        hostUsername: cleanUsername,
+        hostAvatar: avatar,
+        name: spaceName.trim(),
+        mode,
+      });
+
+      sessionStorage.setItem(
+        "ditoefeito_space",
+        JSON.stringify(space)
       );
 
+      router.push(`/sala/${space.id}`);
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Não foi possível criar sua sala agora. Tente novamente."
+      );
+    } finally {
       setSaving(false);
     }
   }
 
-  const info = MODE_INFO[mode];
-
   return (
-    <main className="retro-grid min-h-screen px-5 py-8">
-      <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center">
-        <section className="w-full rounded-3xl border border-white/10 bg-[#101522]/95 p-6 shadow-[0_0_70px_rgba(0,0,0,0.5)] backdrop-blur sm:p-9">
+    <main className="retro-grid min-h-screen px-5 py-10">
+      <div className="mx-auto max-w-2xl">
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="mb-8 font-pixel text-xs text-cyan-300 transition hover:text-white"
+        >
+          ← VOLTAR
+        </button>
 
-          <div className="mb-8 text-center">
-            <div className="mb-4 flex justify-center text-pink-400">
-              <Film size={34} />
+        <section className="rounded-3xl border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur md:p-10">
+          <div className="text-center">
+            <div className="mb-3 font-pixel text-xs text-pink-400">
+              DITO & FEITO
             </div>
 
-            <h1 className="font-pixel text-xl text-white sm:text-2xl">
-              CONFIGURE SEU PERFIL
+            <h1 className="font-pixel text-xl leading-relaxed text-white md:text-2xl">
+              CONFIGURE SUA SESSÃO
             </h1>
 
-            <p className="mt-4 font-retro text-xl text-slate-400">
-              Primeiro montamos seu perfil. Depois você entra no cinema.
+            <p className="mt-4 text-lg text-slate-400">
+              Primeiro a gente prepara sua identidade.
+              Depois, a sessão começa.
             </p>
           </div>
 
-          <div className="mb-8 grid gap-3 sm:grid-cols-3">
-            {(Object.keys(MODE_INFO) as ProfileMode[]).map(
-              (item) => {
-                const selected = mode === item;
-                const itemInfo = MODE_INFO[item];
+          <div className="mt-10">
+            <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
+              COMO VOCÊ VAI JOGAR?
+            </label>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                {
+                  id: "solo" as ProfileMode,
+                  title: "SOZINHO",
+                  text: "Sua biblioteca pessoal.",
+                  icon: "👤",
+                },
+                {
+                  id: "couple" as ProfileMode,
+                  title: "CASALZINHO",
+                  text: "Você + 1 pessoa.",
+                  icon: "💞",
+                },
+                {
+                  id: "group" as ProfileMode,
+                  title: "GRUPINHO",
+                  text: "De 3 até 10 pessoas.",
+                  icon: "👾",
+                },
+              ].map((item) => {
+                const active = mode === item.id;
 
                 return (
                   <button
-                    key={item}
+                    key={item.id}
                     type="button"
-                    onClick={() => setMode(item)}
-                    className={[
-                      "rounded-2xl border px-4 py-5 text-left transition",
-                      selected
-                        ? "border-pink-400/60 bg-pink-500/15 shadow-[0_0_25px_rgba(255,0,127,0.12)]"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/20",
-                    ].join(" ")}
+                    onClick={() => changeMode(item.id)}
+                    className={`rounded-2xl border p-5 text-left transition ${
+                      active
+                        ? "border-pink-400 bg-pink-500/10 shadow-[0_0_25px_rgba(255,0,127,.15)]"
+                        : "border-white/10 bg-white/[.03] hover:border-cyan-400/40"
+                    }`}
                   >
-                    <div
-                      className={
-                        selected
-                          ? "mb-3 text-pink-300"
-                          : "mb-3 text-slate-500"
-                      }
-                    >
-                      {itemInfo.icon}
+                    <div className="text-3xl">
+                      {item.icon}
                     </div>
 
-                    <div className="font-pixel text-[10px] text-white">
-                      {itemInfo.title}
+                    <div className="mt-4 font-pixel text-[10px] text-white">
+                      {item.title}
                     </div>
 
-                    <div className="mt-2 font-retro text-lg leading-tight text-slate-400">
-                      {itemInfo.description}
+                    <div className="mt-2 text-sm text-slate-400">
+                      {item.text}
                     </div>
                   </button>
                 );
-              }
-            )}
-          </div>
-
-          <div className="mb-7 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-5">
-            <div className="flex items-start gap-4">
-              <div className="mt-1 text-cyan-300">
-                {info.icon}
-              </div>
-
-              <div>
-                <div className="font-pixel text-xs text-cyan-200">
-                  {info.title}
-                </div>
-
-                <p className="mt-2 font-retro text-xl text-slate-300">
-                  {info.description}
-                </p>
-              </div>
+              })}
             </div>
           </div>
 
-          <div className="space-y-7">
+          <div className="mt-8">
+            <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
+              SEU NOME
+            </label>
 
-            {/* NOME */}
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <label className="font-pixel text-[10px] text-white">
-                  SEU NOME
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleRandomUsername}
-                  className="flex items-center gap-2 rounded-lg border border-purple-400/30 bg-purple-500/10 px-3 py-2 font-retro text-lg text-purple-200 transition hover:border-purple-300 hover:bg-purple-500/20"
-                >
-                  <Dices size={16} />
-                  Outro nome
-                </button>
-              </div>
-
+            <div className="flex gap-2">
               <input
-                type="text"
                 value={username}
                 onChange={(event) =>
                   setUsername(event.target.value)
                 }
                 maxLength={30}
-                className="w-full rounded-xl border border-white/10 bg-[#080b14] px-4 py-4 font-retro text-2xl text-white outline-none transition placeholder:text-slate-600 focus:border-pink-400/60"
+                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-lg text-white outline-none transition focus:border-cyan-400"
+                placeholder="Seu nome"
               />
 
-              <div className="mt-2 font-retro text-lg text-slate-500">
-                Seu identificador: @{usernamePreview || "..."}
-              </div>
+              <button
+                type="button"
+                onClick={sortearNome}
+                className="rounded-xl border border-white/10 px-4 text-sm text-cyan-300 transition hover:border-cyan-400 hover:text-white"
+              >
+                SORTEAR
+              </button>
             </div>
-
-            {/* AVATAR */}
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <label className="font-pixel text-[10px] text-white">
-                  ESCOLHA SEU AVATAR
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleRandomAvatar}
-                  className="flex items-center gap-2 rounded-lg border border-yellow-400/30 bg-yellow-400/10 px-3 py-2 font-retro text-lg text-yellow-200 transition hover:border-yellow-300 hover:bg-yellow-400/20"
-                >
-                  <RefreshCw size={16} />
-                  Sortear
-                </button>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-[#080b14] p-4">
-
-                <div className="mb-5 flex items-center justify-center">
-                  <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-pink-400/40 bg-pink-500/10 text-6xl shadow-[0_0_35px_rgba(255,0,127,0.15)]">
-                    {avatar}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-6 gap-2 sm:grid-cols-10">
-                  {AVATARS.map((item) => {
-                    const selected = avatar === item;
-
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => setAvatar(item)}
-                        aria-label={`Escolher avatar ${item}`}
-                        className={[
-                          "flex aspect-square items-center justify-center rounded-xl border text-2xl transition",
-                          selected
-                            ? "border-pink-400 bg-pink-500/20 shadow-[0_0_15px_rgba(255,0,127,0.2)]"
-                            : "border-white/5 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.08]",
-                        ].join(" ")}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
-                </div>
-
-              </div>
-            </div>
-
-            {/* ESPAÇO */}
-            {mode !== "solo" && (
-              <div>
-                <label className="mb-3 block font-pixel text-[10px] text-white">
-                  NOME DO ESPAÇO
-                </label>
-
-                <input
-                  type="text"
-                  value={spaceName}
-                  onChange={(event) =>
-                    setSpaceName(event.target.value)
-                  }
-                  maxLength={50}
-                  placeholder={
-                    mode === "couple"
-                      ? "Ex.: Sessão em Dupla"
-                      : "Ex.: Turma da Pipoca"
-                  }
-                  className="w-full rounded-xl border border-white/10 bg-[#080b14] px-4 py-4 font-retro text-2xl text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/60"
-                />
-
-                <p className="mt-2 font-retro text-lg text-slate-500">
-                  {mode === "couple"
-                    ? "O espaço será usado por você e mais uma pessoa."
-                    : "Você poderá convidar até 9 pessoas."}
-                </p>
-              </div>
-            )}
-
-            {/* ERRO */}
-            {error && (
-              <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-center font-retro text-xl text-red-300">
-                {error}
-              </div>
-            )}
-
-            {/* CONTINUAR */}
-            <button
-              type="button"
-              onClick={handleContinue}
-              disabled={saving}
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-pink-300/50 bg-pink-500 px-6 py-5 font-pixel text-xs text-white shadow-[0_0_30px_rgba(255,0,127,0.25)] transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? (
-                <>
-                  <RefreshCw
-                    size={20}
-                    className="animate-spin"
-                  />
-                  SALVANDO...
-                </>
-              ) : (
-                <>
-                  ENTRAR NO DITO & FEITO
-                  <Sparkles size={20} />
-                </>
-              )}
-            </button>
-
           </div>
+
+          <div className="mt-8">
+            <div className="mb-3 flex items-center justify-between">
+              <label className="font-pixel text-[10px] text-cyan-300">
+                SEU AVATAR
+              </label>
+
+              <button
+                type="button"
+                onClick={sortearAvatar}
+                className="text-sm text-pink-400 hover:text-white"
+              >
+                🎲 Sortear
+              </button>
+            </div>
+
+            <div className="grid grid-cols-8 gap-2">
+              {AVATARS.map((item) => {
+                const active = avatar === item;
+
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setAvatar(item)}
+                    className={`aspect-square rounded-xl border text-2xl transition ${
+                      active
+                        ? "border-pink-400 bg-pink-500/15 scale-105"
+                        : "border-white/10 bg-white/[.03] hover:border-cyan-400/40"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {mode !== "solo" && (
+            <div className="mt-8">
+              <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
+                NOME DA SALA
+              </label>
+
+              <input
+                value={spaceName}
+                onChange={(event) =>
+                  setSpaceName(event.target.value)
+                }
+                maxLength={40}
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-lg text-white outline-none transition focus:border-cyan-400"
+                placeholder={
+                  mode === "couple"
+                    ? "Ex.: Sessão da Sexta"
+                    : "Ex.: Turma do Cinema"
+                }
+              />
+
+              <p className="mt-2 text-sm text-slate-500">
+                Você será o anfitrião e poderá convidar as outras pessoas.
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-6 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={saving}
+            className="mt-8 w-full rounded-xl bg-pink-500 px-5 py-4 font-pixel text-xs text-white shadow-[0_0_30px_rgba(255,0,127,.25)] transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving
+              ? "PREPARANDO..."
+              : mode === "solo"
+                ? "ENTRAR NO CINEMA →"
+                : "CRIAR SALA →"}
+          </button>
         </section>
       </div>
     </main>
@@ -416,8 +331,8 @@ export default function ConfigurarPage() {
   return (
     <Suspense
       fallback={
-        <main className="retro-grid flex min-h-screen items-center justify-center">
-          <div className="font-pixel text-sm text-pink-400">
+        <main className="retro-grid min-h-screen flex items-center justify-center">
+          <div className="font-pixel text-xs text-cyan-300">
             CARREGANDO...
           </div>
         </main>
@@ -427,3 +342,4 @@ export default function ConfigurarPage() {
     </Suspense>
   );
 }
+```
