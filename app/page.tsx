@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Film,
   LogIn,
@@ -82,13 +83,26 @@ const colorClasses: Record<
 };
 
 export default function Home() {
+  const router = useRouter();
   const [selectedMode, setSelectedMode] = useState<ModeId | null>(null);
 
-  const selectedModeData = modes.find((mode) => mode.id === selectedMode);
+  const selectedModeData = modes.find(
+    (mode) => mode.id === selectedMode
+  );
+
+  function handleStart() {
+    if (!selectedMode) return;
+
+    router.push(`/configurar?modo=${selectedMode}`);
+  }
+
+  function handleLogin() {
+    router.push("/entrar");
+  }
 
   return (
     <main className="retro-grid min-h-screen overflow-hidden">
-      {/* Header */}
+      {/* HEADER */}
       <header className="relative z-10 border-b border-white/10 bg-black/20 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-3">
@@ -100,6 +114,7 @@ export default function Home() {
               <div className="font-pixel text-[10px] tracking-wider text-white sm:text-xs">
                 DITO
               </div>
+
               <div className="font-pixel text-[10px] tracking-wider text-pink-300 sm:text-xs">
                 & FEITO
               </div>
@@ -108,6 +123,7 @@ export default function Home() {
 
           <button
             type="button"
+            onClick={handleLogin}
             className="flex items-center gap-2 border border-cyan-400/30 bg-cyan-400/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-cyan-300 transition hover:border-cyan-300/60 hover:bg-cyan-400/10"
           >
             <LogIn className="h-4 w-4" />
@@ -116,7 +132,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* HERO */}
       <section className="relative z-10 mx-auto max-w-7xl px-6 pb-16 pt-20 sm:pb-24 sm:pt-28">
         <div className="mx-auto max-w-4xl text-center">
           <div className="mb-8 inline-flex items-center gap-2 border border-pink-400/30 bg-pink-500/5 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-pink-300">
@@ -124,7 +140,7 @@ export default function Home() {
             Seu cinema. Suas regras.
           </div>
 
-          <h1 className="font-pixel text-3xl leading-relaxed bg-red-500 text-black drop-shadow-[0_0_25px_rgba(236,72,153,0.35)] sm:text-5xl sm:leading-relaxed">
+          <h1 className="font-pixel text-3xl leading-relaxed text-white drop-shadow-[0_0_25px_rgba(236,72,153,0.35)] sm:text-5xl sm:leading-relaxed">
             DITO
             <span className="text-pink-400"> & </span>
             FEITO
@@ -146,7 +162,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Mode selector */}
+        {/* MODOS */}
         <div className="mx-auto mt-20 max-w-6xl">
           <div className="mb-8 text-center">
             <p className="font-pixel text-[10px] uppercase tracking-widest text-white/40">
@@ -175,11 +191,8 @@ export default function Home() {
                       : `border-white/8 bg-white/[0.025] ${colors.border} ${colors.bg}`
                   } ${colors.glow} border p-6`}
                 >
-                  {/* Card glow */}
                   <div
-                    className={`pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100 ${
-                      colors.bg
-                    }`}
+                    className={`pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100 ${colors.bg}`}
                   />
 
                   <div className="relative">
@@ -231,6 +244,7 @@ export default function Home() {
         <div className="mx-auto mt-12 flex max-w-md flex-col items-center">
           <button
             type="button"
+            onClick={handleStart}
             disabled={!selectedMode}
             className={`group flex w-full items-center justify-center gap-3 border px-7 py-4 font-pixel text-[10px] uppercase tracking-widest transition ${
               selectedMode
@@ -252,12 +266,13 @@ export default function Home() {
           )}
         </div>
 
-        {/* Features */}
+        {/* FEATURES */}
         <div className="mx-auto mt-24 grid max-w-5xl gap-8 border-y border-white/5 py-10 sm:grid-cols-3">
           <div className="text-center">
             <div className="font-pixel text-[9px] text-pink-300">
               01 — AVALIE
             </div>
+
             <p className="mt-3 font-main text-sm text-white/40">
               Dê sua nota de 0,5 a 10 para filmes e séries.
             </p>
@@ -267,6 +282,7 @@ export default function Home() {
             <div className="font-pixel text-[9px] text-cyan-300">
               02 — COMPARTILHE
             </div>
+
             <p className="mt-3 font-main text-sm text-white/40">
               Compare opiniões sem perder sua avaliação pessoal.
             </p>
@@ -276,6 +292,7 @@ export default function Home() {
             <div className="font-pixel text-[9px] text-purple-300">
               03 — DESCUBRA
             </div>
+
             <p className="mt-3 font-main text-sm text-white/40">
               Monte rankings e descubra os favoritos da sua turma.
             </p>
@@ -283,7 +300,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* FOOTER */}
       <footer className="relative z-10 border-t border-white/5 bg-black/20 px-6 py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
           <div className="font-pixel text-[8px] tracking-wider text-white/25">
