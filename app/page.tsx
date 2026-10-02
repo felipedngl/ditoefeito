@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Eye,
-  Film,
   Gamepad2,
   LogIn,
   Sparkles,
@@ -78,16 +77,20 @@ export default function HomePage() {
   return (
     <main className="retro-grid min-h-screen px-5 py-8">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center">
-
         <div className="mb-8 text-center">
           <div className="mb-5 flex justify-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-pink-400/30 bg-pink-500/10 shadow-[0_0_40px_rgba(255,0,127,0.25)]">
-              <Film
-                size={42}
-                className="text-pink-400"
-              />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Dito & Feito"
+              className="h-auto max-h-40 w-full max-w-[420px] object-contain drop-shadow-[0_0_25px_rgba(255,0,127,0.25)]"
+            />
           </div>
+        
+          <p className="mx-auto mt-5 max-w-xl font-retro text-2xl text-cyan-300 sm:text-3xl">
+            Seu cantinho para assistir, avaliar e descobrir filmes e séries.
+          </p>
+        </div>
+        </div>
 
           <h1 className="font-pixel text-3xl leading-tight text-white sm:text-5xl">
             DITO{" "}
