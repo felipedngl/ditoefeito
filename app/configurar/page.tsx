@@ -21,7 +21,11 @@ import {
   type ProfileMode,
 } from "@/lib/auth";
 
-import { createSpace } from "@/lib/spaces";
+import {
+  createSpace,
+  findWaitingSpaceByCode,
+  joinSpace,
+} from "@/lib/spaces";
 
 function ConfigurarContent() {
   const router = useRouter();
@@ -41,12 +45,21 @@ function ConfigurarContent() {
   const [avatar, setAvatar] = useState("");
   const [spaceName, setSpaceName] = useState("");
 
+  const [inviteCode, setInviteCode] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setUsername(createUsername());
     setAvatar(randomAvatar());
+
+    const savedCode =
+      sessionStorage.getItem("ditoefeito_join_code");
+
+    if (savedCode) {
+      setInviteCode(savedCode.toUpperCase());
+    }
   }, []);
 
   function changeMode(nextMode: ProfileMode) {
@@ -76,7 +89,16 @@ function ConfigurarContent() {
       return;
     }
 
-    if ((mode === "couple" || mode === "group") && !spaceName.trim()) {
+    if (!avatar) {
+      setError("Escolha um avatar para continuar.");
+      return;
+    }
+
+    if (
+      !inviteCode &&
+      (mode === "couple" || mode === "group") &&
+      !spaceName.trim()
+    ) {
       setError("Dê um nome para a sua sala.");
       return;
     }
@@ -101,11 +123,78 @@ function ConfigurarContent() {
         JSON.stringify(profile)
       );
 
+      /*
+       * ---------------------------------------------------------
+       * ENTRADA POR CONVITE
+       * ---------------------------------------------------------
+       *
+       * Se existe um código salvo, esta pessoa veio de uma
+       * sala existente. Ela NÃO deve criar outra sala.
+       */
+      if (inviteCode) {
+        const existingSpace =
+          await findWaitingSpaceByCode(inviteCode);
+
+        if (!existingSpace) {
+          sessionStorage.removeItem(
+            "ditoefeito_join_code"
+          );
+
+          setError(
+            "Essa sala não está mais disponível. Peça um novo código."
+          );
+
+          return;
+        }
+
+        if (
+          existingSpace.mode !== mode
+        ) {
+          setError(
+            "Esse convite pertence a outro tipo de sessão."
+          );
+
+          return;
+        }
+
+        await joinSpace({
+          space: existingSpace,
+          uid: user.uid,
+          username: cleanUsername,
+          avatar,
+        });
+
+        sessionStorage.removeItem(
+          "ditoefeito_join_code"
+        );
+
+        sessionStorage.setItem(
+          "ditoefeito_space",
+          JSON.stringify(existingSpace)
+        );
+
+        router.push(
+          `/sala/${existingSpace.id}`
+        );
+
+        return;
+      }
+
+      /*
+       * ---------------------------------------------------------
+       * SOZINHO
+       * ---------------------------------------------------------
+       */
       if (mode === "solo") {
         router.push("/filmes");
         return;
       }
 
+      /*
+       * ---------------------------------------------------------
+       * NOVA SALA
+       * ---------------------------------------------------------
+       */
       const space = await createSpace({
         hostUid: user.uid,
         hostUsername: cleanUsername,
@@ -122,8 +211,9 @@ function ConfigurarContent() {
       router.push(`/sala/${space.id}`);
     } catch (err) {
       console.error(err);
+
       setError(
-        "Não foi possível criar sua sala agora. Tente novamente."
+        "Não foi possível concluir essa etapa agora. Tente novamente."
       );
     } finally {
       setSaving(false);
@@ -157,61 +247,79 @@ function ConfigurarContent() {
             </p>
           </div>
 
-          <div className="mt-10">
-            <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
-              COMO VOCÊ VAI JOGAR?
-            </label>
+          {inviteCode && (
+            <div className="mt-8 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-5 text-center">
+              <div className="font-pixel text-[9px] text-cyan-300">
+                CONVITE ENCONTRADO
+              </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              {[
-                {
-                  id: "solo" as ProfileMode,
-                  title: "SOZINHO",
-                  text: "Sua biblioteca pessoal.",
-                  icon: "👤",
-                },
-                {
-                  id: "couple" as ProfileMode,
-                  title: "CASALZINHO",
-                  text: "Você + 1 pessoa.",
-                  icon: "💞",
-                },
-                {
-                  id: "group" as ProfileMode,
-                  title: "GRUPINHO",
-                  text: "De 3 até 10 pessoas.",
-                  icon: "👾",
-                },
-              ].map((item) => {
-                const active = mode === item.id;
+              <div className="mt-3 font-pixel text-2xl tracking-widest text-white">
+                {inviteCode}
+              </div>
 
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => changeMode(item.id)}
-                    className={`rounded-2xl border p-5 text-left transition ${
-                      active
-                        ? "border-pink-400 bg-pink-500/10 shadow-[0_0_25px_rgba(255,0,127,.15)]"
-                        : "border-white/10 bg-white/[.03] hover:border-cyan-400/40"
-                    }`}
-                  >
-                    <div className="text-3xl">
-                      {item.icon}
-                    </div>
-
-                    <div className="mt-4 font-pixel text-[10px] text-white">
-                      {item.title}
-                    </div>
-
-                    <div className="mt-2 text-sm text-slate-400">
-                      {item.text}
-                    </div>
-                  </button>
-                );
-              })}
+              <p className="mt-3 text-sm text-slate-400">
+                Configure seu nome e avatar para entrar na sala.
+              </p>
             </div>
-          </div>
+          )}
+
+          {!inviteCode && (
+            <div className="mt-10">
+              <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
+                COMO VOCÊ VAI JOGAR?
+              </label>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                {[
+                  {
+                    id: "solo" as ProfileMode,
+                    title: "SOZINHO",
+                    text: "Sua biblioteca pessoal.",
+                    icon: "👤",
+                  },
+                  {
+                    id: "couple" as ProfileMode,
+                    title: "CASALZINHO",
+                    text: "Você + 1 pessoa.",
+                    icon: "💞",
+                  },
+                  {
+                    id: "group" as ProfileMode,
+                    title: "GRUPINHO",
+                    text: "De 3 até 10 pessoas.",
+                    icon: "👾",
+                  },
+                ].map((item) => {
+                  const active = mode === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => changeMode(item.id)}
+                      className={`rounded-2xl border p-5 text-left transition ${
+                        active
+                          ? "border-pink-400 bg-pink-500/10 shadow-[0_0_25px_rgba(255,0,127,.15)]"
+                          : "border-white/10 bg-white/[.03] hover:border-cyan-400/40"
+                      }`}
+                    >
+                      <div className="text-3xl">
+                        {item.icon}
+                      </div>
+
+                      <div className="mt-4 font-pixel text-[10px] text-white">
+                        {item.title}
+                      </div>
+
+                      <div className="mt-2 text-sm text-slate-400">
+                        {item.text}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="mt-8">
             <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
@@ -265,7 +373,7 @@ function ConfigurarContent() {
                     onClick={() => setAvatar(item)}
                     className={`aspect-square rounded-xl border text-2xl transition ${
                       active
-                        ? "border-pink-400 bg-pink-500/15 scale-105"
+                        ? "scale-105 border-pink-400 bg-pink-500/15"
                         : "border-white/10 bg-white/[.03] hover:border-cyan-400/40"
                     }`}
                   >
@@ -276,7 +384,7 @@ function ConfigurarContent() {
             </div>
           </div>
 
-          {mode !== "solo" && (
+          {!inviteCode && mode !== "solo" && (
             <div className="mt-8">
               <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
                 NOME DA SALA
@@ -316,9 +424,11 @@ function ConfigurarContent() {
           >
             {saving
               ? "PREPARANDO..."
-              : mode === "solo"
-                ? "ENTRAR NO CINEMA →"
-                : "CRIAR SALA →"}
+              : inviteCode
+                ? "ENTRAR NA SALA →"
+                : mode === "solo"
+                  ? "ENTRAR NO CINEMA →"
+                  : "CRIAR SALA →"}
           </button>
         </section>
       </div>
