@@ -130,8 +130,7 @@ export async function findWaitingSpaceByCode(
 
   const q = query(
     collection(db, "spaces"),
-    where("code", "==", normalized),
-    where("status", "==", "waiting")
+    where("code", "==", normalized)
   );
 
   const snapshot = await getDocs(q);
@@ -140,10 +139,15 @@ export async function findWaitingSpaceByCode(
     return null;
   }
 
-  const data = snapshot.docs[0].data();
+  const spaceDoc = snapshot.docs[0];
+  const data = spaceDoc.data();
+
+  if (data.status !== "waiting") {
+    return null;
+  }
 
   return {
-    id: snapshot.docs[0].id,
+    id: spaceDoc.id,
     ...(data as Omit<Space, "id">),
   };
 }
