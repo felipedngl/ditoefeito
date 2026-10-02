@@ -75,25 +75,27 @@ body {
   font-family: var(--font-main);
 }
 
+
 /* ================================
    GRID RETRÔ
 ================================ */
 
 .retro-grid {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
   overflow: hidden;
-  pointer-events: none;
 }
 
 .retro-grid::before {
   content: "";
   position: absolute;
+  z-index: -1;
   left: -50%;
   bottom: -25%;
   width: 200%;
   height: 75%;
+  pointer-events: none;
 
   background-image:
     linear-gradient(
