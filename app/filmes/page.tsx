@@ -19,6 +19,11 @@ import {
   type UserProfile,
 } from "@/lib/auth";
 
+import {
+  getSavedRating,
+  saveRating,
+} from "@/lib/ratings";
+
 type MediaType = "movie" | "tv";
 
 type MediaItem = {
@@ -35,50 +40,72 @@ type MediaItem = {
   popularity: number;
 };
 
-const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+const TMDB_IMAGE_BASE =
+  "https://image.tmdb.org/t/p/w500";
 
 export default function FilmesPage() {
   const router = useRouter();
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] =
+    useState<UserProfile | null>(null);
+
+  const [authUid, setAuthUid] = useState("");
+
   const [loading, setLoading] = useState(true);
 
   const [searchType, setSearchType] =
     useState<MediaType>("movie");
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<MediaItem[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchTerm, setSearchTerm] =
+    useState("");
 
-  const [popularMovies, setPopularMovies] = useState<MediaItem[]>([]);
-  const [popularTv, setPopularTv] = useState<MediaItem[]>([]);
-  const [popularLoading, setPopularLoading] = useState(true);
+  const [searchResults, setSearchResults] =
+    useState<MediaItem[]>([]);
+
+  const [searchLoading, setSearchLoading] =
+    useState(false);
+
+  const [popularMovies, setPopularMovies] =
+    useState<MediaItem[]>([]);
+
+  const [popularTv, setPopularTv] =
+    useState<MediaItem[]>([]);
+
+  const [popularLoading, setPopularLoading] =
+    useState(true);
 
   const [selectedItem, setSelectedItem] =
     useState<MediaItem | null>(null);
 
+  const [ratingOpen, setRatingOpen] =
+    useState(false);
+
   useEffect(() => {
-    const unsubscribe = subscribeToAuth(async (user) => {
-      if (!user) {
-        router.replace("/");
-        return;
-      }
-
-      try {
-        const userProfile = await getUserProfile(user.uid);
-
-        if (!userProfile) {
-          router.replace("/configurar");
+    const unsubscribe = subscribeToAuth(
+      async (user) => {
+        if (!user) {
+          router.replace("/");
           return;
         }
 
-        setProfile(userProfile);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
+        try {
+          const userProfile =
+            await getUserProfile(user.uid);
+
+          if (!userProfile) {
+            router.replace("/configurar");
+            return;
+          }
+
+          setAuthUid(user.uid);
+          setProfile(userProfile);
+        } catch (error) {
+          console.error(error);
+        } finally {
+          setLoading(false);
+        }
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [router]);
@@ -121,39 +148,66 @@ export default function FilmesPage() {
       return;
     }
 
-    const timer = window.setTimeout(async () => {
-      try {
-        setSearchLoading(true);
+    const timer = window.setTimeout(
+      async () => {
+        try {
+          setSearchLoading(true);
 
-        const response = await fetch(
-          `/api/tmdb?action=search&type=${searchType}&query=${encodeURIComponent(
-            term
-          )}`
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            "Não foi possível realizar a busca."
+          const response = await fetch(
+            `/api/tmdb?action=search&type=${searchType}&query=${encodeURIComponent(
+              term
+            )}`
           );
+
+          if (!response.ok) {
+            throw new Error(
+              "Não foi possível realizar a busca."
+            );
+          }
+
+          const data =
+            await response.json();
+
+          setSearchResults(
+            data.results || []
+          );
+        } catch (error) {
+          console.error(error);
+          setSearchResults([]);
+        } finally {
+          setSearchLoading(false);
         }
+      },
+      450
+    );
 
-        const data = await response.json();
-
-        setSearchResults(data.results || []);
-      } catch (error) {
-        console.error(error);
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 450);
-
-    return () => window.clearTimeout(timer);
+    return () =>
+      window.clearTimeout(timer);
   }, [searchTerm, searchType]);
+
+  function changeSearchType(
+    type: MediaType
+  ) {
+    setSearchType(type);
+    setSearchTerm("");
+    setSearchResults([]);
+  }
 
   function clearSearch() {
     setSearchTerm("");
     setSearchResults([]);
+  }
+
+  function openRating(
+    item: MediaItem
+  ) {
+    setSelectedItem(item);
+    setRatingOpen(true);
+  }
+
+  function closeModal() {
+    setSelectedItem(null);
+    setRatingOpen(false);
   }
 
   if (loading) {
@@ -174,14 +228,13 @@ export default function FilmesPage() {
     <main className="retro-grid min-h-screen px-5 pb-16">
       <div className="mx-auto w-full max-w-7xl">
 
-        {/* HEADER */}
-
         <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 py-6">
 
           <button
             type="button"
-            onClick={() => router.push("/filmes")}
+            onClick={() => router.push("/")}
             className="flex items-center gap-3"
+            aria-label="Voltar para o início"
           >
             <img
               src="/logo.png"
@@ -192,7 +245,9 @@ export default function FilmesPage() {
 
           <button
             type="button"
-            onClick={() => router.push("/perfil")}
+            onClick={() =>
+              router.push("/perfil")
+            }
             className="flex items-center gap-3 rounded-xl px-2 py-1 transition hover:bg-white/[0.04]"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-2xl">
@@ -212,45 +267,54 @@ export default function FilmesPage() {
 
         </header>
 
-        {/* NAV */}
-
         <nav className="mt-5 flex gap-2 overflow-x-auto pb-2">
 
           <NavButton
             active
             icon={<Film size={17} />}
             label="Filmes"
-            onClick={() => router.push("/filmes")}
+            onClick={() =>
+              router.push("/filmes")
+            }
           />
 
           <NavButton
             icon={<BookOpen size={17} />}
             label="Biblioteca"
-            onClick={() => router.push("/filmes/biblioteca")}
+            onClick={() =>
+              router.push(
+                "/filmes/biblioteca"
+              )
+            }
           />
 
           <NavButton
             icon={<Trophy size={17} />}
             label="Pódio"
-            onClick={() => router.push("/filmes/podio")}
+            onClick={() =>
+              router.push(
+                "/filmes/podio"
+              )
+            }
           />
 
           <NavButton
             icon={<UserRound size={17} />}
             label="Perfil"
-            onClick={() => router.push("/perfil")}
+            onClick={() =>
+              router.push("/perfil")
+            }
           />
 
         </nav>
-
-        {/* HERO */}
 
         <section className="mt-12">
 
           <div className="text-center">
 
             <p className="font-pixel text-xs text-pink-400">
-              OLÁ, {profile.username.toUpperCase()}
+              OLÁ,{" "}
+              {profile.username.toUpperCase()}
             </p>
 
             <h1 className="mt-5 font-pixel text-2xl leading-relaxed text-white sm:text-4xl">
@@ -258,36 +322,43 @@ export default function FilmesPage() {
             </h1>
 
             <p className="mx-auto mt-4 max-w-2xl font-retro text-2xl text-slate-400">
-              Encontre um filme ou série e registre sua sessão.
+              Escolha filmes ou séries e
+              registre suas sessões.
             </p>
 
           </div>
 
-          {/* SEARCH */}
-
           <div className="mx-auto mt-8 max-w-4xl">
 
-            <div className="mb-3 flex justify-center gap-2">
+            <div className="mb-4 rounded-2xl border border-white/10 bg-[#0b0f1c]/80 p-2">
 
-              <SearchTypeButton
-                active={searchType === "movie"}
-                icon={<Film size={16} />}
-                label="FILMES"
-                onClick={() => {
-                  setSearchType("movie");
-                  setSearchResults([]);
-                }}
-              />
+              <div className="grid grid-cols-2 gap-2">
 
-              <SearchTypeButton
-                active={searchType === "tv"}
-                icon={<Tv size={16} />}
-                label="SÉRIES"
-                onClick={() => {
-                  setSearchType("tv");
-                  setSearchResults([]);
-                }}
-              />
+                <SearchTypeButton
+                  active={
+                    searchType === "movie"
+                  }
+                  icon={<Film size={18} />}
+                  label="FILMES"
+                  onClick={() =>
+                    changeSearchType(
+                      "movie"
+                    )
+                  }
+                />
+
+                <SearchTypeButton
+                  active={
+                    searchType === "tv"
+                  }
+                  icon={<Tv size={18} />}
+                  label="SÉRIES"
+                  onClick={() =>
+                    changeSearchType("tv")
+                  }
+                />
+
+              </div>
 
             </div>
 
@@ -302,7 +373,9 @@ export default function FilmesPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(event) =>
-                  setSearchTerm(event.target.value)
+                  setSearchTerm(
+                    event.target.value
+                  )
                 }
                 placeholder={
                   searchType === "movie"
@@ -325,13 +398,18 @@ export default function FilmesPage() {
 
             </div>
 
+            <div className="mt-3 text-center font-retro text-lg text-slate-500">
+              Pesquisando{" "}
+              {searchType === "movie"
+                ? "filmes"
+                : "séries"}
+            </div>
+
           </div>
 
         </section>
 
-        {/* SEARCH RESULTS */}
-
-        {searchTerm.trim() && (
+        {searchTerm.trim() ? (
           <section className="mt-10">
 
             <SectionTitle
@@ -344,28 +422,28 @@ export default function FilmesPage() {
 
             {searchLoading ? (
               <LoadingMessage />
-            ) : searchResults.length === 0 ? (
+            ) : searchResults.length ===
+              0 ? (
               <EmptyMessage
-                text={`Nenhum ${
+                text={`Nenhuma ${
                   searchType === "movie"
                     ? "filme"
                     : "série"
-                } encontrado.`}
+                } encontrada.`}
               />
             ) : (
               <MediaGrid
                 items={searchResults}
-                onSelect={setSelectedItem}
+                onSelect={
+                  setSelectedItem
+                }
               />
             )}
 
           </section>
-        )}
-
-        {/* POPULAR MOVIES */}
-
-        {!searchTerm.trim() && (
+        ) : (
           <>
+
             <section className="mt-14">
 
               <SectionTitle title="FILMES POPULARES" />
@@ -375,13 +453,13 @@ export default function FilmesPage() {
               ) : (
                 <MediaCarousel
                   items={popularMovies}
-                  onSelect={setSelectedItem}
+                  onSelect={
+                    setSelectedItem
+                  }
                 />
               )}
 
             </section>
-
-            {/* POPULAR TV */}
 
             <section className="mt-14">
 
@@ -392,24 +470,39 @@ export default function FilmesPage() {
               ) : (
                 <MediaCarousel
                   items={popularTv}
-                  onSelect={setSelectedItem}
+                  onSelect={
+                    setSelectedItem
+                  }
                 />
               )}
 
             </section>
+
           </>
         )}
 
       </div>
 
-      {/* DETAIL MODAL */}
+      {selectedItem &&
+        !ratingOpen && (
+          <MediaModal
+            item={selectedItem}
+            onClose={closeModal}
+            onRate={() =>
+              setRatingOpen(true)
+            }
+          />
+        )}
 
-      {selectedItem && (
-        <MediaModal
-          item={selectedItem}
-          onClose={() => setSelectedItem(null)}
-        />
-      )}
+      {selectedItem &&
+        ratingOpen && (
+          <RatingModal
+            uid={authUid}
+            item={selectedItem}
+            onClose={closeModal}
+            onSaved={closeModal}
+          />
+        )}
 
     </main>
   );
@@ -459,9 +552,9 @@ function SearchTypeButton({
       type="button"
       onClick={onClick}
       className={[
-        "flex items-center gap-2 rounded-xl border px-4 py-2 font-pixel text-[9px] transition",
+        "flex min-h-[58px] items-center justify-center gap-2 rounded-xl border px-5 py-3 font-pixel text-[10px] transition",
         active
-          ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-200"
+          ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200 shadow-[0_0_18px_rgba(0,240,255,0.12)]"
           : "border-white/10 bg-white/[0.03] text-slate-500 hover:text-white",
       ].join(" ")}
     >
@@ -471,9 +564,14 @@ function SearchTypeButton({
   );
 }
 
-function SectionTitle({ title }: { title: string }) {
+function SectionTitle({
+  title,
+}: {
+  title: string;
+}) {
   return (
     <div className="mb-5 flex items-center gap-4">
+
       <div className="h-px flex-1 bg-white/10" />
 
       <h2 className="font-pixel text-xs text-cyan-300">
@@ -481,6 +579,7 @@ function SectionTitle({ title }: { title: string }) {
       </h2>
 
       <div className="h-px flex-1 bg-white/10" />
+
     </div>
   );
 }
@@ -490,7 +589,9 @@ function MediaCarousel({
   onSelect,
 }: {
   items: MediaItem[];
-  onSelect: (item: MediaItem) => void;
+  onSelect: (
+    item: MediaItem
+  ) => void;
 }) {
   if (!items.length) {
     return (
@@ -518,10 +619,13 @@ function MediaGrid({
   onSelect,
 }: {
   items: MediaItem[];
-  onSelect: (item: MediaItem) => void;
+  onSelect: (
+    item: MediaItem
+  ) => void;
 }) {
   return (
     <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+
       {items.map((item) => (
         <MediaCard
           key={`${item.type}-${item.id}`}
@@ -529,6 +633,7 @@ function MediaGrid({
           onSelect={onSelect}
         />
       ))}
+
     </div>
   );
 }
@@ -538,7 +643,9 @@ function MediaCard({
   onSelect,
 }: {
   item: MediaItem;
-  onSelect: (item: MediaItem) => void;
+  onSelect: (
+    item: MediaItem
+  ) => void;
 }) {
   const poster = item.posterPath
     ? `${TMDB_IMAGE_BASE}${item.posterPath}`
@@ -550,6 +657,7 @@ function MediaCard({
       onClick={() => onSelect(item)}
       className="group w-[145px] shrink-0 text-left sm:w-[165px]"
     >
+
       <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-[#101522] shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition duration-300 group-hover:-translate-y-2 group-hover:border-pink-400/50 group-hover:shadow-[0_15px_35px_rgba(255,0,127,0.18)]">
 
         {poster ? (
@@ -568,12 +676,18 @@ function MediaCard({
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent p-3 pt-12">
 
           <div className="flex items-center gap-1 text-yellow-300">
-            <Star size={12} fill="currentColor" />
+
+            <Star
+              size={12}
+              fill="currentColor"
+            />
+
             <span className="font-pixel text-[9px]">
               {item.rating > 0
                 ? item.rating.toFixed(1)
                 : "--"}
             </span>
+
           </div>
 
         </div>
@@ -593,6 +707,7 @@ function MediaCard({
         )}
 
       </div>
+
     </button>
   );
 }
@@ -600,12 +715,16 @@ function MediaCard({
 function LoadingCarousel() {
   return (
     <div className="flex gap-5 overflow-hidden">
-      {Array.from({ length: 7 }).map((_, index) => (
-        <div
-          key={index}
-          className="h-[260px] w-[145px] shrink-0 animate-pulse rounded-2xl border border-white/5 bg-white/[0.04] sm:w-[165px]"
-        />
-      ))}
+
+      {Array.from({ length: 7 }).map(
+        (_, index) => (
+          <div
+            key={index}
+            className="h-[260px] w-[145px] shrink-0 animate-pulse rounded-2xl border border-white/5 bg-white/[0.04] sm:w-[165px]"
+          />
+        )
+      )}
+
     </div>
   );
 }
@@ -620,7 +739,11 @@ function LoadingMessage() {
   );
 }
 
-function EmptyMessage({ text }: { text: string }) {
+function EmptyMessage({
+  text,
+}: {
+  text: string;
+}) {
   return (
     <div className="flex min-h-[180px] items-center justify-center rounded-3xl border border-white/5 bg-white/[0.02]">
       <p className="font-retro text-xl text-slate-600">
@@ -633,9 +756,11 @@ function EmptyMessage({ text }: { text: string }) {
 function MediaModal({
   item,
   onClose,
+  onRate,
 }: {
   item: MediaItem;
   onClose: () => void;
+  onRate: () => void;
 }) {
   const poster = item.posterPath
     ? `${TMDB_IMAGE_BASE}${item.posterPath}`
@@ -646,9 +771,12 @@ function MediaModal({
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-5 backdrop-blur-sm"
       onClick={onClose}
     >
+
       <div
         className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-[#0b0f1c] shadow-[0_0_80px_rgba(0,0,0,0.8)]"
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event) =>
+          event.stopPropagation()
+        }
       >
 
         <button
@@ -681,6 +809,7 @@ function MediaModal({
           <div className="p-6 md:p-8">
 
             <div className="flex items-center gap-2 font-pixel text-[9px] text-pink-400">
+
               {item.type === "movie" ? (
                 <>
                   <Film size={14} />
@@ -692,6 +821,7 @@ function MediaModal({
                   SÉRIE
                 </>
               )}
+
             </div>
 
             <h2 className="mt-4 font-pixel text-xl leading-relaxed text-white sm:text-3xl">
@@ -699,7 +829,8 @@ function MediaModal({
             </h2>
 
             {item.originalTitle &&
-              item.originalTitle !== item.title && (
+              item.originalTitle !==
+                item.title && (
                 <p className="mt-2 font-retro text-xl text-slate-500">
                   {item.originalTitle}
                 </p>
@@ -714,14 +845,23 @@ function MediaModal({
               )}
 
               <span className="flex items-center gap-1 font-retro text-xl text-yellow-300">
-                <Star size={16} fill="currentColor" />
+
+                <Star
+                  size={16}
+                  fill="currentColor"
+                />
+
                 {item.rating > 0
                   ? item.rating.toFixed(1)
                   : "--"}
+
               </span>
 
               <span className="font-retro text-lg text-slate-500">
-                {item.voteCount.toLocaleString("pt-BR")} votos TMDB
+                {item.voteCount.toLocaleString(
+                  "pt-BR"
+                )}{" "}
+                votos TMDB
               </span>
 
             </div>
@@ -743,11 +883,7 @@ function MediaModal({
               <button
                 type="button"
                 className="rounded-2xl border border-pink-400/40 bg-pink-500/10 px-6 py-4 font-pixel text-[10px] text-pink-200 transition hover:border-pink-300 hover:bg-pink-500/20"
-                onClick={() => {
-                  alert(
-                    "A tela de avaliação será conectada na próxima etapa."
-                  );
-                }}
+                onClick={onRate}
               >
                 AVALIAR ESTE TÍTULO
               </button>
@@ -759,6 +895,312 @@ function MediaModal({
         </div>
 
       </div>
+
+    </div>
+  );
+}
+
+function RatingModal({
+  uid,
+  item,
+  onClose,
+  onSaved,
+}: {
+  uid: string;
+  item: MediaItem;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [rating, setRating] =
+    useState(0);
+
+  const [review, setReview] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  useEffect(() => {
+    async function loadExisting() {
+      try {
+        const existing =
+          await getSavedRating(
+            uid,
+            item.type,
+            item.id
+          );
+
+        if (existing) {
+          setRating(
+            existing.rating
+          );
+
+          setReview(
+            existing.review || ""
+          );
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadExisting();
+  }, [uid, item]);
+
+  function chooseStar(
+    index: number
+  ) {
+    const half = index + 0.5;
+    const full = index + 1;
+
+    if (rating === half) {
+      setRating(full);
+    } else {
+      setRating(half);
+    }
+  }
+
+  async function handleSave() {
+    if (rating < 0.5) {
+      setError(
+        "Escolha uma nota antes de salvar."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+
+      await saveRating(uid, {
+        mediaId: item.id,
+        mediaType: item.type,
+        title: item.title,
+        originalTitle:
+          item.originalTitle,
+        overview: item.overview,
+        posterPath:
+          item.posterPath,
+        year: item.year,
+        tmdbRating: item.rating,
+        tmdbVoteCount:
+          item.voteCount,
+        rating,
+        review: review.trim(),
+      });
+
+      onSaved();
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        "Não foi possível salvar sua avaliação."
+      );
+
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/85 p-5 backdrop-blur-sm"
+      onClick={onClose}
+    >
+
+      <div
+        className="relative w-full max-w-2xl rounded-3xl border border-pink-400/30 bg-[#0b0f1c] p-6 shadow-[0_0_80px_rgba(255,0,127,0.15)] sm:p-8"
+        onClick={(event) =>
+          event.stopPropagation()
+        }
+      >
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white transition hover:bg-pink-500/30"
+          aria-label="Fechar"
+        >
+          <X size={20} />
+        </button>
+
+        <div className="pr-10">
+
+          <p className="font-pixel text-[9px] text-pink-400">
+            {item.type === "movie"
+              ? "AVALIAR FILME"
+              : "AVALIAR SÉRIE"}
+          </p>
+
+          <h2 className="mt-4 font-pixel text-xl leading-relaxed text-white sm:text-2xl">
+            {item.title}
+          </h2>
+
+          {item.year && (
+            <p className="mt-2 font-retro text-xl text-slate-500">
+              {item.year}
+            </p>
+          )}
+
+        </div>
+
+        {loading ? (
+          <div className="flex min-h-[220px] items-center justify-center">
+            <p className="font-retro text-2xl text-cyan-300">
+              CARREGANDO SUA NOTA...
+            </p>
+          </div>
+        ) : (
+          <>
+
+            <div className="mt-8">
+
+              <p className="font-pixel text-[9px] text-cyan-300">
+                SUA NOTA
+              </p>
+
+              <p className="mt-2 font-retro text-xl text-slate-400">
+                {rating > 0
+                  ? rating.toFixed(1)
+                  : "Escolha de 0,5 a 10"}
+              </p>
+
+              <div className="mt-5 grid grid-cols-5 gap-2 sm:grid-cols-10">
+
+                {Array.from({
+                  length: 10,
+                }).map((_, index) => {
+
+                  const value =
+                    index + 1;
+
+                  const filled =
+                    rating >= value;
+
+                  const half =
+                    rating ===
+                    value - 0.5;
+
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        chooseStar(index)
+                      }
+                      className="group flex flex-col items-center rounded-xl border border-white/5 bg-white/[0.03] px-1 py-2 transition hover:border-yellow-300/40 hover:bg-yellow-300/5"
+                      aria-label={`Dar ${
+                        half
+                          ? value - 0.5
+                          : value
+                      } estrelas`}
+                    >
+
+                      <span className="relative block text-3xl leading-none text-slate-600">
+
+                        <span className="block">
+                          ★
+                        </span>
+
+                        {half && (
+                          <span className="absolute inset-y-0 left-0 w-1/2 overflow-hidden text-yellow-300">
+                            ★
+                          </span>
+                        )}
+
+                        {filled && (
+                          <span className="absolute inset-0 text-yellow-300">
+                            ★
+                          </span>
+                        )}
+
+                      </span>
+
+                      <span className="mt-1 font-pixel text-[7px] text-slate-500">
+                        {value}
+                      </span>
+
+                    </button>
+                  );
+                })}
+
+              </div>
+
+              <p className="mt-3 font-retro text-lg text-slate-500">
+                Clique uma vez para meia
+                estrela e novamente na
+                mesma estrela para completar.
+              </p>
+
+            </div>
+
+            <div className="mt-7">
+
+              <label className="font-pixel text-[9px] text-cyan-300">
+                SUA CRÍTICA / OPINIÃO
+                (OPCIONAL)
+              </label>
+
+              <textarea
+                value={review}
+                onChange={(event) =>
+                  setReview(
+                    event.target.value
+                  )
+                }
+                maxLength={2000}
+                rows={5}
+                placeholder="O que você achou?"
+                className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-[#080b14] px-4 py-4 font-retro text-xl leading-relaxed text-white outline-none placeholder:text-slate-600 focus:border-pink-400/50"
+              />
+
+              <div className="mt-2 text-right font-retro text-base text-slate-600">
+                {review.length}/2000
+              </div>
+
+            </div>
+
+            {error && (
+              <div className="mt-5 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-center font-retro text-lg text-red-300">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 font-pixel text-[9px] text-slate-400 transition hover:text-white"
+              >
+                CANCELAR
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-xl border border-pink-300/50 bg-pink-500 px-6 py-4 font-pixel text-[9px] text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving
+                  ? "SALVANDO..."
+                  : "SALVAR NA BIBLIOTECA"}
+              </button>
+
+            </div>
+
+          </>
+        )}
+
+      </div>
+
     </div>
   );
 }
