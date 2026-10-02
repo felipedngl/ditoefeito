@@ -140,14 +140,6 @@ export default function HomePage() {
               </span>
             </button>
             
-            <button
-              type="button"
-              onClick={() => router.push("/sala")}
-              className="w-full rounded-xl border border-cyan-400/30 bg-cyan-400/5 px-5 py-4 font-pixel text-xs text-cyan-300 transition hover:border-cyan-300 hover:bg-cyan-400/10 hover:text-white"
-            >
-              🎟️ ENTRAR COM CÓDIGO
-            </button>
-            
           </div>
 
           {loading && (
