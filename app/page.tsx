@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Eye,
@@ -12,10 +9,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useState } from "react";
 import {
   ensureAnonymousUser,
   signInWithGoogle,
