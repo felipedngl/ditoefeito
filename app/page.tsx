@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-
 import {
   ArrowRight,
   Eye,
@@ -10,13 +9,12 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 
 import {
   ensureAnonymousUser,
   signInWithGoogle,
 } from "@/lib/auth";
-
-import { useState } from "react";
 
 export default function HomePage() {
   const router = useRouter();
@@ -35,10 +33,7 @@ export default function HomePage() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        "Não foi possível entrar como convidado."
-      );
-
+      setError("Não foi possível entrar como convidado.");
       setLoading(false);
     }
   }
@@ -61,13 +56,9 @@ export default function HomePage() {
         (err as { code?: string }).code ===
           "auth/popup-closed-by-user"
       ) {
-        setError(
-          "A janela de login foi fechada."
-        );
+        setError("A janela de login foi fechada.");
       } else {
-        setError(
-          "Não foi possível entrar com Google."
-        );
+        setError("Não foi possível entrar com Google.");
       }
 
       setLoading(false);
@@ -77,7 +68,9 @@ export default function HomePage() {
   return (
     <main className="retro-grid min-h-screen px-5 py-8">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center">
+
         <div className="mb-8 text-center">
+
           <div className="mb-5 flex justify-center">
             <img
               src="/logo.png"
@@ -85,29 +78,17 @@ export default function HomePage() {
               className="h-auto max-h-40 w-full max-w-[420px] object-contain drop-shadow-[0_0_25px_rgba(255,0,127,0.25)]"
             />
           </div>
-        
-          <p className="mx-auto mt-5 max-w-xl font-retro text-2xl text-cyan-300 sm:text-3xl">
-            Seu cantinho para assistir, avaliar e descobrir filmes e séries.
-          </p>
-        </div>
-        </div>
-
-          <h1 className="font-pixel text-3xl leading-tight text-white sm:text-5xl">
-            DITO{" "}
-            <span className="text-pink-400">
-              &
-            </span>{" "}
-            FEITO
-          </h1>
 
           <p className="mx-auto mt-5 max-w-xl font-retro text-2xl text-cyan-300 sm:text-3xl">
             Seu cantinho para assistir, avaliar e descobrir filmes e séries.
           </p>
+
         </div>
 
         <section className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#101522]/90 p-6 shadow-[0_0_60px_rgba(0,0,0,0.45)] backdrop-blur sm:p-8">
 
           <div className="mb-6 text-center">
+
             <p className="font-pixel text-sm text-yellow-300">
               COMO VOCÊ QUER ENTRAR?
             </p>
@@ -115,6 +96,7 @@ export default function HomePage() {
             <p className="mt-3 font-retro text-xl text-slate-400">
               Você pode começar como convidado e conectar sua conta Google depois.
             </p>
+
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -213,6 +195,7 @@ function Feature({
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-white/5 bg-white/[0.03] px-3 py-5 text-center">
+
       <div className="mb-2 text-purple-400">
         {icon}
       </div>
@@ -220,6 +203,7 @@ function Feature({
       <span className="font-pixel text-[9px] text-slate-300">
         {title}
       </span>
+
     </div>
   );
 }
