@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import {
   ArrowRight,
   Eye,
@@ -17,16 +17,13 @@ import {
   signInWithGoogle,
 } from "@/lib/auth";
 
+import { useState } from "react";
+
 export default function HomePage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    // Nada automático aqui.
-    // A pessoa escolhe conscientemente como quer entrar.
-  }, []);
 
   async function handleGuest() {
     try {
@@ -38,7 +35,11 @@ export default function HomePage() {
       router.push("/configurar");
     } catch (err) {
       console.error(err);
-      setError("Não foi possível entrar como convidado.");
+
+      setError(
+        "Não foi possível entrar como convidado."
+      );
+
       setLoading(false);
     }
   }
@@ -61,9 +62,13 @@ export default function HomePage() {
         (err as { code?: string }).code ===
           "auth/popup-closed-by-user"
       ) {
-        setError("A janela de login foi fechada.");
+        setError(
+          "A janela de login foi fechada."
+        );
       } else {
-        setError("Não foi possível entrar com Google.");
+        setError(
+          "Não foi possível entrar com Google."
+        );
       }
 
       setLoading(false);
@@ -73,6 +78,7 @@ export default function HomePage() {
   return (
     <main className="retro-grid min-h-screen px-5 py-8">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center">
+
         <div className="mb-8 text-center">
           <div className="mb-5 flex justify-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-pink-400/30 bg-pink-500/10 shadow-[0_0_40px_rgba(255,0,127,0.25)]">
@@ -84,7 +90,11 @@ export default function HomePage() {
           </div>
 
           <h1 className="font-pixel text-3xl leading-tight text-white sm:text-5xl">
-            DITO <span className="text-pink-400">&</span> FEITO
+            DITO{" "}
+            <span className="text-pink-400">
+              &
+            </span>{" "}
+            FEITO
           </h1>
 
           <p className="mx-auto mt-5 max-w-xl font-retro text-2xl text-cyan-300 sm:text-3xl">
@@ -93,6 +103,7 @@ export default function HomePage() {
         </div>
 
         <section className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#101522]/90 p-6 shadow-[0_0_60px_rgba(0,0,0,0.45)] backdrop-blur sm:p-8">
+
           <div className="mb-6 text-center">
             <p className="font-pixel text-sm text-yellow-300">
               COMO VOCÊ QUER ENTRAR?
@@ -104,6 +115,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+
             <button
               type="button"
               onClick={handleGoogle}
@@ -143,6 +155,7 @@ export default function HomePage() {
                 Começar agora
               </span>
             </button>
+
           </div>
 
           {loading && (
@@ -156,9 +169,11 @@ export default function HomePage() {
               {error}
             </div>
           )}
+
         </section>
 
         <div className="mt-8 grid w-full max-w-2xl grid-cols-3 gap-3">
+
           <Feature
             icon={<Gamepad2 size={20} />}
             title="SOZINHO"
@@ -173,12 +188,14 @@ export default function HomePage() {
             icon={<Sparkles size={20} />}
             title="GRUPINHO"
           />
+
         </div>
 
         <p className="mt-8 flex items-center gap-2 font-retro text-lg text-slate-500">
           <ArrowRight size={16} />
           Primeiro entre. Depois escolha sua experiência.
         </p>
+
       </div>
     </main>
   );
