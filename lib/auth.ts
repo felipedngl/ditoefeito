@@ -5,6 +5,7 @@ import {
   signInWithPopup,
   User,
 } from "firebase/auth";
+
 import {
   doc,
   getDoc,
@@ -26,6 +27,12 @@ export interface UserProfile {
   updatedAt?: unknown;
 }
 
+/*
+ * Avatares disponíveis.
+ *
+ * Mantemos cada avatar apenas uma vez para
+ * evitar opções visualmente duplicadas.
+ */
 export const AVATARS = [
   "🦊",
   "🐼",
@@ -42,7 +49,6 @@ export const AVATARS = [
   "🐻",
   "🐰",
   "🐹",
-  "🐼",
   "🦉",
   "🐧",
   "🐳",
@@ -59,10 +65,20 @@ export const AVATARS = [
   "🌈",
 ];
 
+/*
+ * Sorteia um avatar.
+ */
 export function randomAvatar(): string {
-  return AVATARS[Math.floor(Math.random() * AVATARS.length)];
+  return AVATARS[
+    Math.floor(Math.random() * AVATARS.length)
+  ];
 }
 
+/*
+ * Nomes iniciais neutros.
+ *
+ * Não usamos nomes de pessoas como exemplo.
+ */
 export function createUsername(): string {
   const names = [
     "CineNauta",
@@ -79,9 +95,14 @@ export function createUsername(): string {
     "Sessão Extra",
   ];
 
-  return names[Math.floor(Math.random() * names.length)];
+  return names[
+    Math.floor(Math.random() * names.length)
+  ];
 }
 
+/*
+ * Cria o identificador usado depois do @.
+ */
 export function slugifyUsername(value: string): string {
   return value
     .normalize("NFD")
@@ -93,6 +114,10 @@ export function slugifyUsername(value: string): string {
     .slice(0, 30);
 }
 
+/*
+ * Garante uma sessão anônima quando ainda
+ * não existe usuário autenticado.
+ */
 export async function ensureAnonymousUser(): Promise<User> {
   if (auth.currentUser) {
     return auth.currentUser;
@@ -103,32 +128,45 @@ export async function ensureAnonymousUser(): Promise<User> {
   return result.user;
 }
 
+/*
+ * Login com Google.
+ *
+ * Se já estivermos em uma conta anônima,
+ * vinculamos o Google à mesma conta para
+ * preservar os dados existentes.
+ */
 export async function signInWithGoogle(): Promise<User> {
   const currentUser = auth.currentUser;
 
-  /*
-   * Se o usuário já estiver como convidado,
-   * vinculamos o Google à conta existente.
-   *
-   * Isso é importante para não criar uma segunda conta
-   * e perder os dados que ele já começou a criar.
-   */
   if (currentUser?.isAnonymous) {
-    const result = await linkWithPopup(currentUser, googleProvider);
+    const result = await linkWithPopup(
+      currentUser,
+      googleProvider
+    );
+
     return result.user;
   }
 
-  const result = await signInWithPopup(auth, googleProvider);
+  const result = await signInWithPopup(
+    auth,
+    googleProvider
+  );
 
   return result.user;
 }
 
+/*
+ * Observa mudanças de autenticação.
+ */
 export function subscribeToAuth(
   callback: (user: User | null) => void
 ): () => void {
   return onAuthStateChanged(auth, callback);
 }
 
+/*
+ * Busca o perfil do usuário.
+ */
 export async function getUserProfile(
   uid: string
 ): Promise<UserProfile | null> {
@@ -142,6 +180,9 @@ export async function getUserProfile(
   return snapshot.data() as UserProfile;
 }
 
+/*
+ * Salva ou atualiza o perfil.
+ */
 export async function saveUserProfile(
   user: User,
   profile: {
