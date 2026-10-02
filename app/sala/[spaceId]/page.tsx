@@ -220,6 +220,14 @@ export default function SalaPage() {
   const readyToStart =
     members.length >= minimum;
 
+  const inviteUrl =
+  typeof window !== "undefined"
+    ? `${window.location.origin}/sala?code=${space.code}`
+    : `/sala?code=${space.code}`;
+
+const qrUrl =
+  `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(inviteUrl)}`;
+
   return (
     <main className="retro-grid min-h-screen px-5 py-10">
       <div className="mx-auto max-w-4xl">
