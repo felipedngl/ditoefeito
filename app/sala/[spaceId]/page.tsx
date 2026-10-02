@@ -276,13 +276,29 @@ const qrUrl =
             </button>
           </div>
 
+          <div className="mt-6 flex justify-center">
+            <div className="rounded-2xl bg-white p-3">
+              <img
+                src={qrUrl}
+                alt={`QR Code para entrar na sala ${space.code}`}
+                width={220}
+                height={220}
+                className="h-[220px] w-[220px]"
+              />
+            </div>
+          </div>
+
+          <p className="mt-4 text-center text-xs text-slate-500">
+            Aponte a câmera do celular para entrar na sala.
+          </p>
+
           <div className="mt-10">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-pixel text-xs text-white">
                   PARTICIPANTES
                 </h2>
-
+                
                 <p className="mt-2 text-sm text-slate-500">
                   {members.length}/{space.maxParticipants}
                 </p>
