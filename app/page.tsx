@@ -1,6 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import {
   ArrowRight,
   Eye,
@@ -13,7 +16,6 @@ import {
   useEffect,
   useState,
 } from "react";
-
 import {
   ensureAnonymousUser,
   signInWithGoogle,
