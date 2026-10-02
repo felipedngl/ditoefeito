@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useState,
 } from "react";
@@ -18,7 +19,7 @@ import {
   joinSpace,
 } from "@/lib/spaces";
 
-export default function EntrarSalaPage() {
+function EntrarSalaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -168,5 +169,12 @@ async function handleJoin() {
         </button>
       </section>
     </main>
+  );
+}
+export default function EntrarSalaPage() {
+  return (
+    <Suspense fallback={null}>
+      <EntrarSalaContent />
+    </Suspense>
   );
 }
