@@ -7,7 +7,10 @@ import {
   useState,
 } from "react";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 
 import {
   Dices,
@@ -63,7 +66,8 @@ function ConfigurarContent() {
 
   const [username, setUsername] = useState("");
   const [avatar, setAvatar] = useState("");
-  const [mode, setMode] = useState<ProfileMode>("solo");
+  const [mode, setMode] =
+    useState<ProfileMode>("solo");
   const [spaceName, setSpaceName] = useState("");
 
   const [saving, setSaving] = useState(false);
@@ -93,7 +97,10 @@ function ConfigurarContent() {
     setAvatar((current) => {
       let next = randomAvatar();
 
-      while (AVATARS.length > 1 && next === current) {
+      while (
+        AVATARS.length > 1 &&
+        next === current
+      ) {
         next = randomAvatar();
       }
 
@@ -156,16 +163,19 @@ function ConfigurarContent() {
       );
 
       /*
-       * Por enquanto todos entram na home de filmes.
+       * Por enquanto, todos entram na área de filmes.
        *
-       * A sala de espera de casal/grupo entra no Commit 2.
+       * A sala de espera de casal/grupo será
+       * implementada na próxima etapa.
        */
       router.push("/filmes");
     } catch (err) {
       console.error(err);
+
       setError(
         "Não foi possível salvar seu perfil. Tente novamente."
       );
+
       setSaving(false);
     }
   }
@@ -176,6 +186,7 @@ function ConfigurarContent() {
     <main className="retro-grid min-h-screen px-5 py-8">
       <div className="mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center">
         <section className="w-full rounded-3xl border border-white/10 bg-[#101522]/95 p-6 shadow-[0_0_70px_rgba(0,0,0,0.5)] backdrop-blur sm:p-9">
+
           <div className="mb-8 text-center">
             <div className="mb-4 flex justify-center text-pink-400">
               <Film size={34} />
@@ -250,6 +261,8 @@ function ConfigurarContent() {
           </div>
 
           <div className="space-y-7">
+
+            {/* NOME */}
             <div>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <label className="font-pixel text-[10px] text-white">
@@ -281,6 +294,7 @@ function ConfigurarContent() {
               </div>
             </div>
 
+            {/* AVATAR */}
             <div>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <label className="font-pixel text-[10px] text-white">
@@ -298,6 +312,7 @@ function ConfigurarContent() {
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-[#080b14] p-4">
+
                 <div className="mb-5 flex items-center justify-center">
                   <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-pink-400/40 bg-pink-500/10 text-6xl shadow-[0_0_35px_rgba(255,0,127,0.15)]">
                     {avatar}
@@ -326,9 +341,11 @@ function ConfigurarContent() {
                     );
                   })}
                 </div>
+
               </div>
             </div>
 
+            {/* ESPAÇO */}
             {mode !== "solo" && (
               <div>
                 <label className="mb-3 block font-pixel text-[10px] text-white">
@@ -344,8 +361,8 @@ function ConfigurarContent() {
                   maxLength={50}
                   placeholder={
                     mode === "couple"
-                      ? "Ex.: Felipe & Ana"
-                      : "Ex.: Galera da Sessão"
+                      ? "Ex.: Sessão em Dupla"
+                      : "Ex.: Turma da Pipoca"
                   }
                   className="w-full rounded-xl border border-white/10 bg-[#080b14] px-4 py-4 font-retro text-2xl text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/60"
                 />
@@ -358,12 +375,14 @@ function ConfigurarContent() {
               </div>
             )}
 
+            {/* ERRO */}
             {error && (
               <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-center font-retro text-xl text-red-300">
                 {error}
               </div>
             )}
 
+            {/* CONTINUAR */}
             <button
               type="button"
               onClick={handleContinue}
@@ -385,6 +404,7 @@ function ConfigurarContent() {
                 </>
               )}
             </button>
+
           </div>
         </section>
       </div>
