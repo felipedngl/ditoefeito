@@ -34,6 +34,7 @@ export default function SalaPage() {
 
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
