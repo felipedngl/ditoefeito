@@ -142,7 +142,7 @@ export default function BibliotecaPage() {
         <nav className="mt-5 flex gap-2 overflow-x-auto pb-2">
 
           <NavButton
-            label="Filmes"
+            label="Catálogo"
             onClick={() =>
               router.push("/filmes")
             }
