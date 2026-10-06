@@ -272,7 +272,7 @@ export default function FilmesPage() {
           <NavButton
             active
             icon={<Film size={17} />}
-            label="Filmes"
+            label="Catálogo"
             onClick={() =>
               router.push("/filmes")
             }
