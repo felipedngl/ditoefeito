@@ -47,16 +47,18 @@ function generateCode(length = 6): string {
   return code;
 }
 
+
 async function codeAlreadyExists(code: string): Promise<boolean> {
   const q = query(
     collection(db, "spaces"),
-    where("code", "==", code),
-    where("status", "==", "waiting")
+    where("code", "==", code)
   );
 
   const snapshot = await getDocs(q);
 
-  return !snapshot.empty;
+  return snapshot.docs.some(
+    (item) => item.data().status === "waiting"
+  );
 }
 
 async function generateUniqueCode(): Promise<string> {
@@ -119,6 +121,7 @@ export async function createSpace(params: {
   return space;
 }
 
+
 export async function findWaitingSpaceByCode(
   code: string
 ): Promise<Space | null> {
@@ -135,16 +138,15 @@ export async function findWaitingSpaceByCode(
 
   const snapshot = await getDocs(q);
 
-  if (snapshot.empty) {
+  const spaceDoc = snapshot.docs.find(
+    (item) => item.data().status === "waiting"
+  );
+
+  if (!spaceDoc) {
     return null;
   }
 
-  const spaceDoc = snapshot.docs[0];
   const data = spaceDoc.data();
-
-  if (data.status !== "waiting") {
-    return null;
-  }
 
   return {
     id: spaceDoc.id,
