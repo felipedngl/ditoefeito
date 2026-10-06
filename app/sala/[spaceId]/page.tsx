@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
 import { useParams, useRouter } from "next/navigation";
 
@@ -163,6 +160,55 @@ export default function SalaPage() {
       });
   }
 
+  async function shareInvite() {
+    if (!space) return;
+
+    const inviteUrl =
+      `${window.location.origin}/sala?code=${encodeURIComponent(
+        space.code
+      )}`;
+
+    try {
+      setSharing(true);
+      setError("");
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "Convite para o Dito & Feito",
+          text: `Você foi convidado para a sala "${space.name}" no Dito & Feito.`,
+          url: inviteUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(inviteUrl);
+
+        setError("Link do convite copiado!");
+        setTimeout(() => setError(""), 2500);
+      }
+    } catch (err) {
+      console.error(err);
+
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "name" in err &&
+        (err as { name?: string }).name === "AbortError"
+      ) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+
+        setError("Link do convite copiado!");
+        setTimeout(() => setError(""), 2500);
+      } catch {
+        setError("Não foi possível compartilhar o convite.");
+      }
+    } finally {
+      setSharing(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="retro-grid min-h-screen flex items-center justify-center">
@@ -199,21 +245,13 @@ export default function SalaPage() {
     );
   }
 
-  const currentUserIsHost =
-    profile &&
-    space.hostUid &&
-    members.some(
-      (member) =>
-        member.uid === space.hostUid &&
-        member.uid === member.uid
-    );
+  const currentUser = profile;
 
   const isHost =
-    currentUserIsHost &&
-    profile?.username ===
-      members.find(
-        (member) => member.uid === space.hostUid
-      )?.username;
+    currentUser !== null &&
+    space.hostUid ===
+      members.find((member) => member.uid === space.hostUid)?.uid &&
+    members.some((member) => member.uid === space.hostUid);
 
   const minimum =
     space.mode === "couple" ? 2 : 3;
@@ -222,12 +260,16 @@ export default function SalaPage() {
     members.length >= minimum;
 
   const inviteUrl =
-  typeof window !== "undefined"
-    ? `${window.location.origin}/sala?code=${space.code}`
-    : `/sala?code=${space.code}`;
+    typeof window !== "undefined"
+      ? `${window.location.origin}/sala?code=${encodeURIComponent(
+          space.code
+        )}`
+      : `/sala?code=${encodeURIComponent(space.code)}`;
 
-const qrUrl =
-  `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(inviteUrl)}`;
+  const qrUrl =
+    `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(
+      inviteUrl
+    )}`;
 
   return (
     <main className="retro-grid min-h-screen px-5 py-10">
@@ -268,13 +310,26 @@ const qrUrl =
               {space.code}
             </div>
 
-            <button
-              type="button"
-              onClick={copyCode}
-              className="mt-5 rounded-xl border border-cyan-400/30 px-5 py-3 text-sm text-cyan-300 transition hover:border-cyan-300 hover:text-white"
-            >
-              📋 COPIAR CÓDIGO
-            </button>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={copyCode}
+                className="rounded-xl border border-cyan-400/30 px-4 py-3 text-sm text-cyan-300 transition hover:border-cyan-300 hover:text-white"
+              >
+                📋 COPIAR CÓDIGO
+              </button>
+
+              <button
+                type="button"
+                onClick={shareInvite}
+                disabled={sharing}
+                className="rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 text-sm text-pink-300 transition hover:border-pink-300 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sharing
+                  ? "ABRINDO..."
+                  : "🔗 COMPARTILHAR CONVITE"}
+              </button>
+            </div>
           </div>
 
           <div className="mt-6 flex justify-center">
@@ -299,7 +354,7 @@ const qrUrl =
                 <h2 className="font-pixel text-xs text-white">
                   PARTICIPANTES
                 </h2>
-                
+
                 <p className="mt-2 text-sm text-slate-500">
                   {members.length}/{space.maxParticipants}
                 </p>
@@ -349,7 +404,8 @@ const qrUrl =
           {error && (
             <div
               className={`mt-6 rounded-xl px-4 py-3 text-center text-sm ${
-                error === "Código copiado!"
+                error === "Código copiado!" ||
+                error === "Link do convite copiado!"
                   ? "border border-green-400/20 bg-green-500/10 text-green-300"
                   : "border border-red-400/20 bg-red-500/10 text-red-300"
               }`}
@@ -370,7 +426,7 @@ const qrUrl =
                   ? "INICIANDO..."
                   : readyToStart
                     ? "COMEÇAR SESSÃO →"
-                    : `AGUARDANDO PARTICIPANTES`}
+                    : "AGUARDANDO PARTICIPANTES"}
               </button>
             ) : (
               <div className="rounded-xl border border-white/10 bg-white/[.03] px-5 py-5 text-center">
@@ -379,7 +435,8 @@ const qrUrl =
                 </div>
 
                 <p className="mt-3 text-sm text-slate-500">
-                  Quando todos estiverem prontos, o anfitrião poderá começar a sessão.
+                  Quando todos estiverem prontos, o anfitrião poderá começar a
+                  sessão.
                 </p>
               </div>
             )}
