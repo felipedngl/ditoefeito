@@ -147,16 +147,8 @@ function ConfigurarContent() {
           return;
         }
 
-        if (
-          existingSpace.mode !== mode
-        ) {
-          setError(
-            "Esse convite pertence a outro tipo de sessão."
-          );
-
-          return;
-        }
-
+        setMode(existingSpace.mode);
+        
         await joinSpace({
           space: existingSpace,
           uid: user.uid,
