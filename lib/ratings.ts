@@ -25,11 +25,27 @@ export type SavedRating = {
   updatedAt?: unknown;
 };
 
+const FIREBASE_TIMEOUT = 10000;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  message: string
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error(message));
+      }, FIREBASE_TIMEOUT);
+    }),
+  ]);
+}
+
 function ratingDocId(
   mediaType: SavedRating["mediaType"],
   mediaId: number
 ) {
-  return mediaType + "_" + mediaId;
+  return `${mediaType}_${mediaId}`;
 }
 
 export async function getSavedRating(
@@ -45,7 +61,10 @@ export async function getSavedRating(
     ratingDocId(mediaType, mediaId)
   );
 
-  const snapshot = await getDoc(ref);
+  const snapshot = await withTimeout(
+    getDoc(ref),
+    "O Firebase demorou demais para carregar sua avaliação."
+  );
 
   return snapshot.exists()
     ? (snapshot.data() as SavedRating)
@@ -64,29 +83,37 @@ export async function saveRating(
     ratingDocId(rating.mediaType, rating.mediaId)
   );
 
-  const existing = await getDoc(ref);
+  const existing = await withTimeout(
+    getDoc(ref),
+    "O Firebase demorou demais para acessar sua avaliação."
+  );
 
-  await setDoc(
-    ref,
-    {
-      ...rating,
-      updatedAt: serverTimestamp(),
-
-      ...(existing.exists()
-        ? {}
-        : {
-            createdAt: serverTimestamp(),
-          }),
-    },
-    { merge: true }
+  await withTimeout(
+    setDoc(
+      ref,
+      {
+        ...rating,
+        updatedAt: serverTimestamp(),
+        ...(existing.exists()
+          ? {}
+          : {
+              createdAt: serverTimestamp(),
+            }),
+      },
+      { merge: true }
+    ),
+    "O Firebase demorou demais para salvar sua avaliação."
   );
 }
 
 export async function getUserRatings(
   uid: string
 ): Promise<SavedRating[]> {
-  const snapshot = await getDocs(
-    collection(db, "users", uid, "ratings")
+  const snapshot = await withTimeout(
+    getDocs(
+      collection(db, "users", uid, "ratings")
+    ),
+    "O Firebase demorou demais para carregar sua biblioteca."
   );
 
   return snapshot.docs
