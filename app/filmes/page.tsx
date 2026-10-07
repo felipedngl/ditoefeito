@@ -1070,11 +1070,6 @@ function RatingModal({
   activeSpace: Space | null;
 }) {
   
-  uid: string;
-  item: MediaItem;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
   const [rating, setRating] =
     useState(0);
 
