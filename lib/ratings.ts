@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -103,6 +104,25 @@ export async function saveRating(
       { merge: true }
     ),
     "O Firebase demorou demais para salvar sua avaliação."
+  );
+}
+
+export async function deleteRating(
+  uid: string,
+  mediaType: SavedRating["mediaType"],
+  mediaId: number
+): Promise<void> {
+  const ref = doc(
+    db,
+    "users",
+    uid,
+    "ratings",
+    ratingDocId(mediaType, mediaId)
+  );
+
+  await withTimeout(
+    deleteDoc(ref),
+    "O Firebase demorou demais para excluir este título."
   );
 }
 
