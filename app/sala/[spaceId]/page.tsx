@@ -272,7 +272,7 @@ export default function SalaPage() {
         setRequesting(true);
         setRequestError("");
 
-        if (!space) {
+        if (!space || !profile) {
           return;
         }
         
