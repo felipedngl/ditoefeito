@@ -3,6 +3,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  addTitleToSpace,
+  saveSpaceRating,
+  subscribeToMembers,
+  subscribeToSpace,
+  subscribeToSpaceRatings,
+  subscribeToSpaceTitles,
+  type Space,
+  type SpaceMember,
+  type SpaceRating,
+  type SpaceTitle,
+} from "@/lib/spaces";
+
+import {
   BookOpen,
   Film,
   Search,
@@ -50,6 +63,18 @@ export default function FilmesPage() {
     useState<UserProfile | null>(null);
 
   const [authUid, setAuthUid] = useState("");
+
+  const [activeSpace, setActiveSpace] =
+  useState<Space | null>(null);
+
+  const [spaceMembers, setSpaceMembers] =
+    useState<SpaceMember[]>([]);
+  
+  const [spaceTitles, setSpaceTitles] =
+    useState<SpaceTitle[]>([]);
+  
+  const [spaceRatings, setSpaceRatings] =
+    useState<Record<string, SpaceRating[]>>({});
 
   const [loading, setLoading] = useState(true);
 
@@ -109,6 +134,120 @@ export default function FilmesPage() {
 
     return () => unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+  if (!profile) return;
+
+  if (profile.mode === "solo") {
+    setActiveSpace(null);
+    return;
+  }
+
+  const raw =
+    sessionStorage.getItem(
+      "ditoefeito_space"
+    );
+
+  if (!raw) {
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Space;
+
+    if (parsed?.id) {
+      setActiveSpace(parsed);
+    }
+  } catch (error) {
+    console.error(
+      "Não foi possível recuperar a sala:",
+      error
+    );
+  }
+}, [profile]);
+
+  useEffect(() => {
+  if (
+    !activeSpace ||
+    !profile ||
+    profile.mode === "solo"
+  ) {
+    setSpaceMembers([]);
+    setSpaceTitles([]);
+    setSpaceRatings({});
+    return;
+  }
+
+  const unsubscribeSpace =
+    subscribeToSpace(
+      activeSpace.id,
+      (nextSpace) => {
+        if (nextSpace) {
+          setActiveSpace(nextSpace);
+
+          sessionStorage.setItem(
+            "ditoefeito_space",
+            JSON.stringify(nextSpace)
+          );
+        }
+      }
+    );
+
+  const unsubscribeMembers =
+    subscribeToMembers(
+      activeSpace.id,
+      setSpaceMembers
+    );
+
+  const unsubscribeTitles =
+    subscribeToSpaceTitles(
+      activeSpace.id,
+      setSpaceTitles
+    );
+
+  return () => {
+    unsubscribeSpace();
+    unsubscribeMembers();
+    unsubscribeTitles();
+  };
+}, [activeSpace?.id, profile]);
+
+  useEffect(() => {
+  if (
+    !activeSpace ||
+    !spaceTitles.length
+  ) {
+    setSpaceRatings({});
+    return;
+  }
+
+  const unsubscribers =
+    spaceTitles.map((title) => {
+      const key =
+        `${title.mediaType}_${title.mediaId}`;
+
+      return subscribeToSpaceRatings(
+        activeSpace.id,
+        title.mediaType,
+        title.mediaId,
+        (ratings) => {
+          setSpaceRatings((current) => ({
+            ...current,
+            [key]: ratings,
+          }));
+        }
+      );
+    });
+
+  return () => {
+    unsubscribers.forEach(
+      (unsubscribe) => unsubscribe()
+    );
+  };
+}, [
+  activeSpace?.id,
+  spaceTitles,
+]);
 
   useEffect(() => {
     async function loadPopular() {
@@ -409,6 +548,22 @@ export default function FilmesPage() {
 
         </section>
 
+{activeSpace &&
+  profile.mode !== "solo" &&
+  spaceTitles.length > 0 && (
+    <SharedSessionPanel
+      space={activeSpace}
+      members={spaceMembers}
+      titles={spaceTitles}
+      ratings={spaceRatings}
+      currentUid={authUid}
+      onSelect={(item) => {
+        setSelectedItem(item);
+        setRatingOpen(true);
+      }}
+    />
+  )}
+        
         {searchTerm.trim() ? (
           <section className="mt-10">
 
@@ -496,12 +651,13 @@ export default function FilmesPage() {
 
       {selectedItem &&
         ratingOpen && (
-          <RatingModal
-            uid={authUid}
-            item={selectedItem}
-            onClose={closeModal}
-            onSaved={closeModal}
-          />
+      <RatingModal
+        uid={authUid}
+        item={selectedItem}
+        activeSpace={activeSpace}
+        onClose={closeModal}
+        onSaved={closeModal}
+      />
         )}
 
     </main>
@@ -905,7 +1061,15 @@ function RatingModal({
   item,
   onClose,
   onSaved,
+  activeSpace,
 }: {
+  uid: string;
+  item: MediaItem;
+  onClose: () => void;
+  onSaved: () => void;
+  activeSpace: Space | null;
+}) {
+  
   uid: string;
   item: MediaItem;
   onClose: () => void;
@@ -980,24 +1144,59 @@ function RatingModal({
       setSaving(true);
       setError("");
 
-      await saveRating(uid, {
-        mediaId: item.id,
-        mediaType: item.type,
-        title: item.title,
-        originalTitle:
-          item.originalTitle,
-        overview: item.overview,
-        posterPath:
-          item.posterPath,
-        year: item.year,
-        tmdbRating: item.rating,
-        tmdbVoteCount:
-          item.voteCount,
-        rating,
-        review: review.trim(),
-      });
+await saveRating(uid, {
+  mediaId: item.id,
+  mediaType: item.type,
+  title: item.title,
+  originalTitle:
+    item.originalTitle,
+  overview: item.overview,
+  posterPath:
+    item.posterPath,
+  year: item.year,
+  tmdbRating: item.rating,
+  tmdbVoteCount:
+    item.voteCount,
+  rating,
+  review: review.trim(),
+});
 
-      onSaved();
+if (
+  activeSpace &&
+  activeSpace.mode !== "solo"
+) {
+  await addTitleToSpace(
+    activeSpace.id,
+    {
+      mediaId: item.id,
+      mediaType: item.type,
+      title: item.title,
+      originalTitle:
+        item.originalTitle,
+      overview: item.overview,
+      posterPath:
+        item.posterPath,
+      year: item.year,
+      tmdbRating: item.rating,
+      tmdbVoteCount:
+        item.voteCount,
+      addedBy: uid,
+    }
+  );
+
+  await saveSpaceRating(
+    activeSpace.id,
+    item.type,
+    item.id,
+    {
+      uid,
+      value: rating,
+      review: review.trim(),
+    }
+  );
+}
+
+onSaved();
     } catch (err) {
       console.error(err);
 
@@ -1191,6 +1390,8 @@ function RatingModal({
               >
                 {saving
                   ? "SALVANDO..."
+                  : activeSpace
+                  ? "SALVAR NOTA NA SESSÃO"
                   : "SALVAR NA BIBLIOTECA"}
               </button>
 
@@ -1203,4 +1404,160 @@ function RatingModal({
 
     </div>
   );
+  function SharedSessionPanel({
+  space,
+  members,
+  titles,
+  ratings,
+  currentUid,
+  onSelect,
+}: {
+  space: Space;
+  members: SpaceMember[];
+  titles: SpaceTitle[];
+  ratings: Record<string, SpaceRating[]>;
+  currentUid: string;
+  onSelect: (item: MediaItem) => void;
+}) {
+  const pending = titles.filter(
+    (title) => {
+      const key =
+        `${title.mediaType}_${title.mediaId}`;
+
+      const titleRatings =
+        ratings[key] || [];
+
+      return !titleRatings.some(
+        (rating) =>
+          rating.uid === currentUid
+      );
+    }
+  );
+
+  if (!pending.length) {
+    return (
+      <section className="mt-10 rounded-3xl border border-green-400/20 bg-green-500/[0.04] p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-pixel text-[9px] text-green-300">
+              SESSÃO CONECTADA
+            </p>
+
+            <h2 className="mt-2 font-pixel text-sm text-white">
+              {space.name}
+            </h2>
+
+            <p className="mt-2 font-retro text-xl text-slate-400">
+              Todo mundo já deu sua nota nos títulos
+              escolhidos.
+            </p>
+          </div>
+
+          <div className="font-pixel text-[9px] text-green-300">
+            {members.length} PARTICIPANTES
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mt-10 rounded-3xl border border-pink-400/30 bg-pink-500/[0.05] p-5 shadow-[0_0_40px_rgba(255,0,127,0.08)]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="font-pixel text-[9px] text-pink-400">
+            {space.mode === "couple"
+              ? "CASALZINHO"
+              : "GRUPINHO"}
+          </p>
+
+          <h2 className="mt-2 font-pixel text-sm text-white">
+            {space.name}
+          </h2>
+
+          <p className="mt-2 font-retro text-xl text-slate-400">
+            FALTA SUA NOTA
+          </p>
+        </div>
+
+        <div className="font-retro text-lg text-slate-500">
+          {pending.length} título
+          {pending.length !== 1 ? "s" : ""} esperando você
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3">
+        {pending.map((title) => {
+          const key =
+            `${title.mediaType}_${title.mediaId}`;
+
+          const titleRatings =
+            ratings[key] || [];
+
+          const firstRating =
+            titleRatings[0];
+
+          const item: MediaItem = {
+            id: title.mediaId,
+            type: title.mediaType,
+            title: title.title,
+            originalTitle:
+              title.originalTitle,
+            overview: title.overview,
+            posterPath:
+              title.posterPath,
+            backdropPath: null,
+            year: title.year,
+            rating:
+              title.tmdbRating,
+            voteCount:
+              title.tmdbVoteCount,
+            popularity: 0,
+          };
+
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onSelect(item)}
+              className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/20 p-3 text-left transition hover:border-pink-400/40 hover:bg-pink-500/[0.05]"
+            >
+              <div className="h-20 w-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.04]">
+                {title.posterPath ? (
+                  <img
+                    src={`${TMDB_IMAGE_BASE}${title.posterPath}`}
+                    alt={title.title}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[8px] text-slate-600">
+                    SEM
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="font-retro text-xl text-white">
+                  {title.title}
+                </div>
+
+                {firstRating && (
+                  <div className="mt-1 font-retro text-base text-slate-500">
+                    Já avaliaram:
+                    {" "}
+                    {firstRating.rating.toFixed(1)}
+                  </div>
+                )}
+
+                <div className="mt-2 font-pixel text-[9px] text-pink-300">
+                  DAR MINHA NOTA →
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 }
