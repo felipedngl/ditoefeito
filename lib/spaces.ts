@@ -13,7 +13,10 @@ import { db } from "./firebase";
 
 export type SpaceMode = "couple" | "group";
 
-export type SpaceStatus = "waiting" | "active" | "locked";
+export type SpaceStatus =
+  | "waiting"
+  | "active"
+  | "locked";
 
 export type SpaceMember = {
   uid: string;
@@ -35,42 +38,102 @@ export type Space = {
   updatedAt?: unknown;
 };
 
-function generateCode(length = 6): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+export type SpaceTitle = {
+  id: string;
+  mediaId: number;
+  mediaType: "movie" | "tv";
+  title: string;
+  originalTitle: string;
+  overview: string;
+  posterPath: string | null;
+  year: string;
+  tmdbRating: number;
+  tmdbVoteCount: number;
+  addedBy: string;
+  addedAt?: unknown;
+};
+
+export type SpaceRating = {
+  uid: string;
+  rating: number;
+  review: string;
+  updatedAt?: unknown;
+};
+
+const FIREBASE_TIMEOUT = 10000;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  message: string
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error(message));
+      }, FIREBASE_TIMEOUT);
+    }),
+  ]);
+}
+
+function generateCode(
+  length = 6
+): string {
+  const chars =
+    "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
   let code = "";
 
   for (let i = 0; i < length; i += 1) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code +=
+      chars[
+        Math.floor(
+          Math.random() * chars.length
+        )
+      ];
   }
 
   return code;
 }
 
-
-async function codeAlreadyExists(code: string): Promise<boolean> {
+async function codeAlreadyExists(
+  code: string
+): Promise<boolean> {
   const q = query(
     collection(db, "spaces"),
     where("code", "==", code)
   );
 
-  const snapshot = await getDocs(q);
+  const snapshot =
+    await withTimeout(
+      getDocs(q),
+      "O Firebase demorou demais para verificar o código da sala."
+    );
 
   return snapshot.docs.some(
-    (item) => item.data().status === "waiting"
+    (item) =>
+      item.data().status === "waiting"
   );
 }
 
 async function generateUniqueCode(): Promise<string> {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (
+    let attempt = 0;
+    attempt < 10;
+    attempt += 1
+  ) {
     const code = generateCode();
 
-    if (!(await codeAlreadyExists(code))) {
+    if (
+      !(await codeAlreadyExists(code))
+    ) {
       return code;
     }
   }
 
-  throw new Error("Não foi possível gerar um código de sala.");
+  throw new Error(
+    "Não foi possível gerar um código de sala."
+  );
 }
 
 export async function createSpace(params: {
@@ -80,11 +143,17 @@ export async function createSpace(params: {
   name: string;
   mode: SpaceMode;
 }): Promise<Space> {
-  const code = await generateUniqueCode();
+  const code =
+    await generateUniqueCode();
 
-  const spaceRef = doc(collection(db, "spaces"));
+  const spaceRef = doc(
+    collection(db, "spaces")
+  );
 
-  const maxParticipants = params.mode === "couple" ? 2 : 10;
+  const maxParticipants =
+    params.mode === "couple"
+      ? 2
+      : 10;
 
   const space: Space = {
     id: spaceRef.id,
@@ -96,11 +165,16 @@ export async function createSpace(params: {
     maxParticipants,
   };
 
-  await setDoc(spaceRef, {
-    ...space,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  await withTimeout(
+    setDoc(spaceRef, {
+      ...space,
+      createdAt:
+        serverTimestamp(),
+      updatedAt:
+        serverTimestamp(),
+    }),
+    "Não foi possível criar a sala."
+  );
 
   const memberRef = doc(
     db,
@@ -110,22 +184,27 @@ export async function createSpace(params: {
     params.hostUid
   );
 
-  await setDoc(memberRef, {
-    uid: params.hostUid,
-    username: params.hostUsername,
-    avatar: params.hostAvatar,
-    role: "host",
-    joinedAt: serverTimestamp(),
-  });
+  await withTimeout(
+    setDoc(memberRef, {
+      uid: params.hostUid,
+      username:
+        params.hostUsername,
+      avatar: params.hostAvatar,
+      role: "host",
+      joinedAt:
+        serverTimestamp(),
+    }),
+    "Não foi possível registrar o anfitrião."
+  );
 
   return space;
 }
 
-
 export async function findWaitingSpaceByCode(
   code: string
 ): Promise<Space | null> {
-  const normalized = code.trim().toUpperCase();
+  const normalized =
+    code.trim().toUpperCase();
 
   if (!normalized) {
     return null;
@@ -136,21 +215,32 @@ export async function findWaitingSpaceByCode(
     where("code", "==", normalized)
   );
 
-  const snapshot = await getDocs(q);
+  const snapshot =
+    await withTimeout(
+      getDocs(q),
+      "O Firebase demorou demais para localizar a sala."
+    );
 
-  const spaceDoc = snapshot.docs.find(
-    (item) => item.data().status === "waiting"
-  );
+  const spaceDoc =
+    snapshot.docs.find(
+      (item) =>
+        item.data().status ===
+        "waiting"
+    );
 
   if (!spaceDoc) {
     return null;
   }
 
-  const data = spaceDoc.data();
+  const data =
+    spaceDoc.data();
 
   return {
     id: spaceDoc.id,
-    ...(data as Omit<Space, "id">),
+    ...(data as Omit<
+      Space,
+      "id"
+    >),
   };
 }
 
@@ -168,24 +258,38 @@ export async function joinSpace(params: {
     params.uid
   );
 
-  await setDoc(
-    memberRef,
-    {
-      uid: params.uid,
-      username: params.username,
-      avatar: params.avatar,
-      role: params.uid === params.space.hostUid ? "host" : "member",
-      joinedAt: serverTimestamp(),
-    },
-    { merge: true }
+  await withTimeout(
+    setDoc(
+      memberRef,
+      {
+        uid: params.uid,
+        username: params.username,
+        avatar: params.avatar,
+        role:
+          params.uid ===
+          params.space.hostUid
+            ? "host"
+            : "member",
+        joinedAt:
+          serverTimestamp(),
+      },
+      { merge: true }
+    ),
+    "Não foi possível entrar na sala."
   );
 }
 
 export function subscribeToSpace(
   spaceId: string,
-  callback: (space: Space | null) => void
+  callback: (
+    space: Space | null
+  ) => void
 ): () => void {
-  const ref = doc(db, "spaces", spaceId);
+  const ref = doc(
+    db,
+    "spaces",
+    spaceId
+  );
 
   return onSnapshot(
     ref,
@@ -197,10 +301,18 @@ export function subscribeToSpace(
 
       callback({
         id: snapshot.id,
-        ...(snapshot.data() as Omit<Space, "id">),
+        ...(snapshot.data() as Omit<
+          Space,
+          "id"
+        >),
       });
     },
-    () => {
+    (error) => {
+      console.error(
+        "Erro ao observar sala:",
+        error
+      );
+
       callback(null);
     }
   );
@@ -208,59 +320,12 @@ export function subscribeToSpace(
 
 export function subscribeToMembers(
   spaceId: string,
-  callback: (members: SpaceMember[]) => void
+  callback: (
+    members: SpaceMember[]
+  ) => void
 ): () => void {
-  const membersRef = collection(
-    db,
-    "spaces",
-    spaceId,
-    "members"
-  );
-
-  return onSnapshot(
-    membersRef,
-    (snapshot) => {
-      const members = snapshot.docs.map((item) => {
-        return item.data() as SpaceMember;
-      });
-
-      members.sort((a, b) => {
-        if (a.role === "host") return -1;
-        if (b.role === "host") return 1;
-
-        return a.username.localeCompare(b.username);
-      });
-
-      callback(members);
-    },
-    () => {
-      callback([]);
-    }
-  );
-}
-
-export async function startSpace(spaceId: string): Promise<void> {
-  const ref = doc(db, "spaces", spaceId);
-
-  await setDoc(
-    ref,
-    {
-      status: "active",
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
-}
-
-export async function lockSpace(spaceId: string): Promise<void> {
-  const ref = doc(db, "spaces", spaceId);
-
-  await setDoc(
-    ref,
-    {
-      status: "locked",
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
-}
+  const membersRef =
+    collection(
+      db,
+      "spaces",
+      spa
