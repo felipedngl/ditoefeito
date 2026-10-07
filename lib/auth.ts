@@ -7,10 +7,15 @@ import {
 } from "firebase/auth";
 
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  limit,
+  query,
   serverTimestamp,
   setDoc,
+  where,
 } from "firebase/firestore";
 
 import { auth, db, googleProvider } from "./firebase";
@@ -64,10 +69,6 @@ export const AVATARS = [
 
 const FIREBASE_TIMEOUT = 10000;
 
-/*
- * Evita que uma operação do Firebase
- * deixe a interface presa para sempre.
- */
 function withTimeout<T>(
   promise: Promise<T>,
   message: string
@@ -84,9 +85,7 @@ function withTimeout<T>(
 
 export function randomAvatar(): string {
   return AVATARS[
-    Math.floor(
-      Math.random() * AVATARS.length
-    )
+    Math.floor(Math.random() * AVATARS.length)
   ];
 }
 
@@ -107,9 +106,7 @@ export function createUsername(): string {
   ];
 
   return names[
-    Math.floor(
-      Math.random() * names.length
-    )
+    Math.floor(Math.random() * names.length)
   ];
 }
 
@@ -126,12 +123,6 @@ export function slugifyUsername(
     .slice(0, 30);
 }
 
-/*
- * Entrada como convidado.
- *
- * O timeout impede que uma falha de conexão
- * deixe o botão travado indefinidamente.
- */
 export async function ensureAnonymousUser(): Promise<User> {
   if (auth.currentUser) {
     return auth.currentUser;
@@ -145,13 +136,6 @@ export async function ensureAnonymousUser(): Promise<User> {
   return result.user;
 }
 
-/*
- * Login Google.
- *
- * Também possui limite de tempo para evitar
- * que a tela fique presa caso o popup ou
- * Firebase não respondam.
- */
 export async function signInWithGoogle(): Promise<User> {
   const currentUser = auth.currentUser;
 
@@ -178,16 +162,8 @@ export async function signInWithGoogle(): Promise<User> {
   return result.user;
 }
 
-/*
- * Observa o usuário autenticado.
- *
- * O Firebase continua sendo a fonte oficial
- * do estado de autenticação.
- */
 export function subscribeToAuth(
-  callback: (
-    user: User | null
-  ) => void
+  callback: (user: User | null) => void
 ): () => void {
   return onAuthStateChanged(
     auth,
@@ -195,13 +171,6 @@ export function subscribeToAuth(
   );
 }
 
-/*
- * Busca o perfil do usuário.
- *
- * O timeout é especialmente importante aqui,
- * porque várias páginas dependem dessa função
- * para sair do estado "CARREGANDO".
- */
 export async function getUserProfile(
   uid: string
 ): Promise<UserProfile | null> {
@@ -224,11 +193,57 @@ export async function getUserProfile(
 }
 
 /*
- * Salva o perfil.
+ * Busca um perfil público pelo endereço:
  *
- * Tanto a leitura anterior quanto a gravação
- * possuem timeout.
+ * /perfil/felipe
+ *
+ * O UID não precisa estar na URL.
  */
+export async function getPublicProfileBySlug(
+  usernameSlug: string
+): Promise<
+  (UserProfile & { uid: string }) | null
+> {
+  const normalizedSlug =
+    slugifyUsername(usernameSlug);
+
+  if (!normalizedSlug) {
+    return null;
+  }
+
+  const usersRef = collection(
+    db,
+    "users"
+  );
+
+  const profileQuery = query(
+    usersRef,
+    where(
+      "usernameSlug",
+      "==",
+      normalizedSlug
+    ),
+    limit(1)
+  );
+
+  const snapshot = await withTimeout(
+    getDocs(profileQuery),
+    "O Firebase demorou demais para localizar este perfil."
+  );
+
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const profileDoc =
+    snapshot.docs[0];
+
+  return {
+    uid: profileDoc.id,
+    ...(profileDoc.data() as UserProfile),
+  };
+}
+
 export async function saveUserProfile(
   user: User,
   profile: {
@@ -245,30 +260,23 @@ export async function saveUserProfile(
     user.uid
   );
 
-  const existing = await withTimeout(
-    getDoc(ref),
-    "O Firebase demorou demais para acessar seu perfil."
-  );
+  const existing =
+    await withTimeout(
+      getDoc(ref),
+      "O Firebase demorou demais para acessar seu perfil."
+    );
 
   await withTimeout(
     setDoc(
       ref,
       {
-        username:
-          profile.username,
-
+        username: profile.username,
         usernameSlug:
           profile.usernameSlug,
-
-        avatar:
-          profile.avatar,
-
-        mode:
-          profile.mode,
-
+        avatar: profile.avatar,
+        mode: profile.mode,
         spaceName:
           profile.spaceName,
-
         updatedAt:
           serverTimestamp(),
 
