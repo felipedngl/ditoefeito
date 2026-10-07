@@ -1156,10 +1156,7 @@ await saveRating(uid, {
   review: review.trim(),
 });
 
-if (
-  activeSpace &&
-  activeSpace.mode !== "solo"
-) {
+if (activeSpace) {
   await addTitleToSpace(
     activeSpace.id,
     {
