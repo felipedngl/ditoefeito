@@ -9,6 +9,8 @@ import {
   Save,
   Trophy,
   UserRound,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 
 import {
@@ -19,7 +21,6 @@ import {
   saveUserProfile,
   slugifyUsername,
   subscribeToAuth,
-  type ProfileMode,
   type UserProfile,
 } from "@/lib/auth";
 
@@ -29,53 +30,43 @@ export default function PerfilPage() {
   const [profile, setProfile] =
     useState<UserProfile | null>(null);
 
-  const [username, setUsername] =
-    useState("");
-
-  const [avatar, setAvatar] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [saved, setSaved] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
+  const [username, setUsername] = useState("");
+  const [avatar, setAvatar] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const unsubscribe =
-      subscribeToAuth(async (user) => {
-        if (!user) {
-          router.replace("/");
+    const unsubscribe = subscribeToAuth(async (user) => {
+      if (!user) {
+        router.replace("/");
+        return;
+      }
+
+      try {
+        const userProfile =
+          await getUserProfile(user.uid);
+
+        if (!userProfile) {
+          router.replace("/configurar");
           return;
         }
 
-        try {
-          const userProfile =
-            await getUserProfile(user.uid);
+        setProfile(userProfile);
+        setUsername(userProfile.username);
+        setAvatar(userProfile.avatar);
+      } catch (err) {
+        console.error(err);
 
-          if (!userProfile) {
-            router.replace("/configurar");
-            return;
-          }
-
-          setProfile(userProfile);
-          setUsername(userProfile.username);
-          setAvatar(userProfile.avatar);
-        } catch (err) {
-          console.error(err);
-          setError(
-            "Não foi possível carregar seu perfil."
-          );
-        } finally {
-          setLoading(false);
-        }
-      });
+        setError(
+          "Não foi possível carregar seu perfil."
+        );
+      } finally {
+        setLoading(false);
+      }
+    });
 
     return () => unsubscribe();
   }, [router]);
@@ -93,24 +84,17 @@ export default function PerfilPage() {
   }
 
   async function handleSave() {
-    if (!profile) {
-      return;
-    }
+    if (!profile) return;
 
-    const cleanUsername =
-      username.trim();
+    const cleanUsername = username.trim();
 
     if (!cleanUsername) {
-      setError(
-        "Escolha um nome para continuar."
-      );
+      setError("Escolha um nome para continuar.");
       return;
     }
 
     if (!avatar) {
-      setError(
-        "Escolha um avatar para continuar."
-      );
+      setError("Escolha um avatar para continuar.");
       return;
     }
 
@@ -119,43 +103,34 @@ export default function PerfilPage() {
       setSaved(false);
       setError("");
 
-      /*
-       * O perfil original continua sendo a
-       * fonte do modo e do nome da sala.
-       *
-       * Aqui estamos alterando somente
-       * nome e avatar.
-       */
-        const user = auth.currentUser;
-        
-        if (!user) {
-          throw new Error(
-            "Usuário não autenticado."
-          );
-        }
+      const user = auth.currentUser;
 
-      await saveUserProfile(
-        user,
-        {
-          username: cleanUsername,
-          usernameSlug:
-            slugifyUsername(
-              cleanUsername
-            ),
-          avatar,
-          mode: profile.mode,
-          spaceName:
-            profile.spaceName,
-        }
-      );
+      if (!user) {
+        throw new Error("Usuário não autenticado.");
+      }
+
+      const newSlug = slugifyUsername(cleanUsername);
+
+      await saveUserProfile(user, {
+        username: cleanUsername,
+        usernameSlug: newSlug,
+        avatar,
+
+        /*
+         * O modo continua sendo preservado para
+         * a lógica das salas.
+         *
+         * A sala NÃO faz mais parte da interface
+         * pública do perfil.
+         */
+        mode: profile.mode,
+        spaceName: profile.spaceName || "",
+      });
 
       const updatedProfile: UserProfile = {
         ...profile,
         username: cleanUsername,
-        usernameSlug:
-          slugifyUsername(
-            cleanUsername
-          ),
+        usernameSlug: newSlug,
         avatar,
       };
 
@@ -163,9 +138,7 @@ export default function PerfilPage() {
 
       sessionStorage.setItem(
         "ditoefeito_profile",
-        JSON.stringify(
-          updatedProfile
-        )
+        JSON.stringify(updatedProfile)
       );
 
       setSaved(true);
@@ -178,6 +151,44 @@ export default function PerfilPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function copyProfileLink() {
+    if (!profile || typeof window === "undefined") {
+      return;
+    }
+
+    const slug =
+      profile.usernameSlug ||
+      slugifyUsername(profile.username);
+
+    const url =
+      `${window.location.origin}/perfil/${slug}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+
+      setCopied(true);
+
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error(
+        "Não foi possível copiar o link:",
+        error
+      );
+    }
+  }
+
+  function openPublicProfile() {
+    if (!profile) return;
+
+    const slug =
+      profile.usernameSlug ||
+      slugifyUsername(profile.username);
+
+    router.push(`/perfil/${slug}`);
   }
 
   if (loading) {
@@ -194,9 +205,12 @@ export default function PerfilPage() {
     return null;
   }
 
+  const profileSlug =
+    profile.usernameSlug ||
+    slugifyUsername(profile.username);
+
   return (
     <main className="retro-grid min-h-screen px-5 pb-16">
-
       <div className="mx-auto w-full max-w-5xl">
 
         {/* HEADER */}
@@ -223,19 +237,16 @@ export default function PerfilPage() {
             </div>
 
             <div className="hidden text-left sm:block">
-
               <div className="font-pixel text-[10px] text-white">
                 {username}
               </div>
 
               <div className="font-retro text-lg text-slate-500">
-                @{slugifyUsername(username)}
+                @{profileSlug}
               </div>
-
             </div>
 
           </div>
-
         </header>
 
         {/* NAVEGAÇÃO */}
@@ -254,9 +265,7 @@ export default function PerfilPage() {
             icon={<BookOpen size={17} />}
             label="Biblioteca"
             onClick={() =>
-              router.push(
-                "/filmes/biblioteca"
-              )
+              router.push("/filmes/biblioteca")
             }
           />
 
@@ -264,9 +273,7 @@ export default function PerfilPage() {
             icon={<Trophy size={17} />}
             label="Pódio"
             onClick={() =>
-              router.push(
-                "/filmes/podio"
-              )
+              router.push("/filmes/podio")
             }
           />
 
@@ -303,17 +310,14 @@ export default function PerfilPage() {
           </h1>
 
           <p className="mx-auto mt-4 max-w-2xl font-retro text-2xl text-slate-400">
-            Seu nome, seu avatar e sua identidade
-            no Dito & Feito.
+            Seu perfil público no Dito & Feito.
           </p>
 
         </section>
 
-        {/* CARTÃO PRINCIPAL */}
+        {/* PERFIL PÚBLICO */}
 
         <section className="mt-10 rounded-3xl border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur sm:p-10">
-
-          {/* AVATAR DESTAQUE */}
 
           <div className="flex flex-col items-center">
 
@@ -321,12 +325,36 @@ export default function PerfilPage() {
               {avatar}
             </div>
 
-            <div className="mt-5 font-pixel text-[10px] text-cyan-300">
-              {profile.mode === "solo"
-                ? "SOZINHO"
-                : profile.mode === "couple"
-                  ? "CASALZINHO"
-                  : "GRUPINHO"}
+            <h2 className="mt-5 font-pixel text-xl text-white">
+              {username}
+            </h2>
+
+            <div className="mt-2 font-retro text-xl text-slate-500">
+              @{profileSlug}
+            </div>
+
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+
+              <button
+                type="button"
+                onClick={openPublicProfile}
+                className="flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 font-pixel text-[9px] text-cyan-300 transition hover:border-cyan-300 hover:text-white"
+              >
+                <ExternalLink size={15} />
+                VER PERFIL PÚBLICO
+              </button>
+
+              <button
+                type="button"
+                onClick={copyProfileLink}
+                className="flex items-center gap-2 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 font-pixel text-[9px] text-pink-300 transition hover:border-pink-300 hover:text-white"
+              >
+                <Copy size={15} />
+                {copied
+                  ? "LINK COPIADO!"
+                  : "COMPARTILHAR PERFIL"}
+              </button>
+
             </div>
 
           </div>
@@ -345,9 +373,7 @@ export default function PerfilPage() {
                 type="text"
                 value={username}
                 onChange={(event) => {
-                  setUsername(
-                    event.target.value
-                  );
+                  setUsername(event.target.value);
                   setSaved(false);
                   setError("");
                 }}
@@ -367,8 +393,8 @@ export default function PerfilPage() {
             </div>
 
             <p className="mt-2 font-retro text-base text-slate-600">
-              Seu nome aparecerá nas salas,
-              avaliações e rankings.
+              Seu nome aparece nas salas,
+              avaliações, rankings e no seu perfil público.
             </p>
 
           </div>
@@ -396,9 +422,7 @@ export default function PerfilPage() {
             <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
 
               {AVATARS.map((item) => {
-
-                const active =
-                  avatar === item;
+                const active = avatar === item;
 
                 return (
                   <button
@@ -420,45 +444,30 @@ export default function PerfilPage() {
                     {item}
                   </button>
                 );
-
               })}
 
             </div>
 
           </div>
 
-          {/* INFORMAÇÕES DA SESSÃO */}
+          {/* LINK PÚBLICO */}
 
           <div className="mx-auto mt-10 max-w-2xl">
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-5">
+            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-5">
 
               <div className="font-pixel text-[9px] text-cyan-300">
-                SUA SESSÃO
+                SEU PERFIL PÚBLICO
               </div>
 
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-
-                <InfoCard
-                  label="MODO"
-                  value={
-                    profile.mode === "solo"
-                      ? "SOZINHO"
-                      : profile.mode === "couple"
-                        ? "CASALZINHO"
-                        : "GRUPINHO"
-                  }
-                />
-
-                <InfoCard
-                  label="SALA"
-                  value={
-                    profile.spaceName ||
-                    "Sem sala definida"
-                  }
-                />
-
+              <div className="mt-3 break-all font-retro text-lg text-white">
+                /perfil/{profileSlug}
               </div>
+
+              <p className="mt-2 font-retro text-base text-slate-500">
+                Compartilhe esse endereço para outras pessoas
+                conhecerem sua biblioteca e suas avaliações.
+              </p>
 
             </div>
 
@@ -502,7 +511,6 @@ export default function PerfilPage() {
         </section>
 
       </div>
-
     </main>
   );
 }
@@ -532,27 +540,5 @@ function NavButton({
       {icon}
       {label}
     </button>
-  );
-}
-
-function InfoCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-white/5 bg-black/20 p-4">
-
-      <div className="font-pixel text-[8px] text-slate-600">
-        {label}
-      </div>
-
-      <div className="mt-2 font-retro text-xl text-white">
-        {value}
-      </div>
-
-    </div>
   );
 }
