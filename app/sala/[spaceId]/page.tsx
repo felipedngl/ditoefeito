@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import {
@@ -12,12 +11,27 @@ import {
 
 import {
   joinSpace,
-  startSpace,
   subscribeToMembers,
   subscribeToSpace,
+  subscribeToSpaceRatings,
+  subscribeToSpaceTitles,
   type Space,
   type SpaceMember,
+  type SpaceRating,
+  type SpaceTitle,
 } from "@/lib/spaces";
+
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  ExternalLink,
+  Film,
+  RefreshCw,
+  Share2,
+  Star,
+  Tv,
+} from "lucide-react";
 
 export default function SalaPage() {
   const router = useRouter();
@@ -31,31 +45,40 @@ export default function SalaPage() {
   const [members, setMembers] =
     useState<SpaceMember[]>([]);
 
+  const [titles, setTitles] =
+    useState<SpaceTitle[]>([]);
+
+  const [ratings, setRatings] =
+    useState<Record<string, SpaceRating[]>>({});
+
   const [profile, setProfile] =
     useState<UserProfile | null>(null);
+
+  const [currentUid, setCurrentUid] =
+    useState("");
 
   const [loading, setLoading] =
     useState(true);
 
-  const [starting, setStarting] =
+  const [error, setError] =
+    useState("");
+
+  const [copied, setCopied] =
     useState(false);
 
   const [sharing, setSharing] =
     useState(false);
 
-  const [error, setError] =
-    useState("");
-
   useEffect(() => {
-    let active = true;
+    let mounted = true;
 
-    const loadingTimeout =
+    const timeout =
       window.setTimeout(() => {
-        if (!active) return;
+        if (!mounted) return;
 
         setLoading(false);
         setError(
-          "A sala demorou demais para responder. Verifique sua conexão e tente novamente."
+          "A sala demorou demais para responder. Tente atualizar a página."
         );
       }, 12000);
 
@@ -64,19 +87,24 @@ export default function SalaPage() {
         const user =
           await ensureAnonymousUser();
 
+        if (!mounted) return;
+
+        setCurrentUid(user.uid);
+
         const savedProfile =
           await getUserProfile(user.uid);
 
-        if (active) {
-          setProfile(savedProfile);
-        }
+        if (!mounted) return;
+
+        setProfile(savedProfile);
       } catch (err) {
         console.error(err);
 
-        if (active) {
+        if (mounted) {
           setError(
             "Não foi possível carregar seu perfil."
           );
+          setLoading(false);
         }
       }
     }
@@ -87,11 +115,9 @@ export default function SalaPage() {
       subscribeToSpace(
         spaceId,
         (nextSpace) => {
-          if (!active) return;
+          if (!mounted) return;
 
-          window.clearTimeout(
-            loadingTimeout
-          );
+          window.clearTimeout(timeout);
 
           if (!nextSpace) {
             setSpace(null);
@@ -109,13 +135,6 @@ export default function SalaPage() {
             "ditoefeito_space",
             JSON.stringify(nextSpace)
           );
-
-          if (
-            nextSpace.status ===
-            "active"
-          ) {
-            router.push("/filmes");
-          }
         }
       );
 
@@ -123,89 +142,185 @@ export default function SalaPage() {
       subscribeToMembers(
         spaceId,
         (nextMembers) => {
-          if (!active) return;
+          if (!mounted) return;
 
           setMembers(nextMembers);
         }
       );
 
-    return () => {
-      active = false;
+    const unsubscribeTitles =
+      subscribeToSpaceTitles(
+        spaceId,
+        (nextTitles) => {
+          if (!mounted) return;
 
-      window.clearTimeout(
-        loadingTimeout
+          setTitles(nextTitles);
+        }
       );
+
+    return () => {
+      mounted = false;
+
+      window.clearTimeout(timeout);
 
       unsubscribeSpace();
       unsubscribeMembers();
+      unsubscribeTitles();
     };
-  }, [spaceId, router]);
+  }, [spaceId]);
 
   useEffect(() => {
-    async function ensureMember() {
-      if (!space || !profile) return;
-
-      try {
-        const user =
-          await ensureAnonymousUser();
-
-        await joinSpace({
-          space,
-          uid: user.uid,
-          username:
-            profile.username,
-          avatar: profile.avatar,
-        });
-      } catch (err) {
-        console.error(err);
-      }
+    if (!space || !profile || !currentUid) {
+      return;
     }
 
-    ensureMember();
-  }, [space, profile]);
+    joinSpace({
+      space,
+      uid: currentUid,
+      username: profile.username,
+      avatar: profile.avatar,
+    }).catch((err) => {
+      console.error(
+        "Não foi possível confirmar participante:",
+        err
+      );
+    });
+  }, [
+    space,
+    profile,
+    currentUid,
+  ]);
 
-  async function handleStart() {
-    if (!space || !profile) return;
+  useEffect(() => {
+    if (!space || !titles.length) {
+      setRatings({});
+      return;
+    }
 
-    try {
-      const user =
-        await ensureAnonymousUser();
+    const unsubscribers =
+      titles.map((title) => {
+        const key =
+          `${title.mediaType}_${title.mediaId}`;
 
-      if (user.uid !== space.hostUid) {
-        return;
+        return subscribeToSpaceRatings(
+          space.id,
+          title.mediaType,
+          title.mediaId,
+          (nextRatings) => {
+            setRatings((current) => ({
+              ...current,
+              [key]: nextRatings,
+            }));
+          }
+        );
+      });
+
+    return () => {
+      unsubscribers.forEach(
+        (unsubscribe) => unsubscribe()
+      );
+    };
+  }, [
+    space?.id,
+    titles,
+  ]);
+
+  const participantCount =
+    members.length;
+
+  const totalExpected =
+    members.length;
+
+  const titleStats = useMemo(() => {
+    const result: Record<
+      string,
+      {
+        votes: SpaceRating[];
+        average: number;
+        pending: SpaceMember[];
+        currentUserVoted: boolean;
       }
+    > = {};
 
-      const minimum =
-        space.mode === "couple"
-          ? 2
-          : 3;
+    titles.forEach((title) => {
+      const key =
+        `${title.mediaType}_${title.mediaId}`;
 
-      if (members.length < minimum) {
-        setError(
-          space.mode === "couple"
-            ? "O casal precisa ter 2 participantes."
-            : "O grupinho precisa ter pelo menos 3 participantes."
+      const titleRatings =
+        ratings[key] || [];
+
+      const average =
+        titleRatings.length
+          ? titleRatings.reduce(
+              (sum, item) =>
+                sum + item.rating,
+              0
+            ) / titleRatings.length
+          : 0;
+
+      const pending =
+        members.filter(
+          (member) =>
+            !titleRatings.some(
+              (rating) =>
+                rating.uid ===
+                member.uid
+            )
         );
 
-        return;
-      }
+      result[key] = {
+        votes: titleRatings,
+        average,
+        pending,
+        currentUserVoted:
+          !!currentUid &&
+          titleRatings.some(
+            (rating) =>
+              rating.uid ===
+              currentUid
+          ),
+      };
+    });
 
-      setError("");
-      setStarting(true);
+    return result;
+  }, [
+    titles,
+    ratings,
+    members,
+    currentUid,
+  ]);
 
-      await startSpace(
-        space.id
+  const myPendingTitles =
+    titles.filter((title) => {
+      const key =
+        `${title.mediaType}_${title.mediaId}`;
+
+      return !titleStats[key]
+        ?.currentUserVoted;
+    });
+
+  const allTitlesComplete =
+    titles.length > 0 &&
+    titles.every((title) => {
+      const key =
+        `${title.mediaType}_${title.mediaId}`;
+
+      const stats =
+        titleStats[key];
+
+      return (
+        stats &&
+        stats.votes.length >=
+          participantCount
       );
-    } catch (err) {
-      console.error(err);
+    });
 
-      setError(
-        "Não foi possível iniciar a sala."
-      );
-    } finally {
-      setStarting(false);
-    }
-  }
+  const inviteUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/sala?code=${encodeURIComponent(
+          space?.code || ""
+        )}`
+      : "";
 
   function copyCode() {
     if (!space) return;
@@ -213,10 +328,10 @@ export default function SalaPage() {
     navigator.clipboard
       ?.writeText(space.code)
       .then(() => {
-        setError("Código copiado!");
+        setCopied(true);
 
-        setTimeout(
-          () => setError(""),
+        window.setTimeout(
+          () => setCopied(false),
           2000
         );
       })
@@ -230,11 +345,6 @@ export default function SalaPage() {
   async function shareInvite() {
     if (!space) return;
 
-    const inviteUrl =
-      `${window.location.origin}/sala?code=${encodeURIComponent(
-        space.code
-      )}`;
-
     try {
       setSharing(true);
       setError("");
@@ -244,7 +354,7 @@ export default function SalaPage() {
           title:
             "Convite para o Dito & Feito",
           text:
-            `Você foi convidado para a sala "${space.name}" no Dito & Feito.`,
+            `Entre na sala "${space.name}" do Dito & Feito.`,
           url: inviteUrl,
         });
       } else {
@@ -252,13 +362,11 @@ export default function SalaPage() {
           inviteUrl
         );
 
-        setError(
-          "Link do convite copiado!"
-        );
+        setCopied(true);
 
-        setTimeout(
-          () => setError(""),
-          2500
+        window.setTimeout(
+          () => setCopied(false),
+          2000
         );
       }
     } catch (err) {
@@ -268,34 +376,34 @@ export default function SalaPage() {
         typeof err === "object" &&
         err !== null &&
         "name" in err &&
-        (err as {
-          name?: string;
-        }).name === "AbortError"
+        (err as { name?: string })
+          .name === "AbortError"
       ) {
         return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(
-          inviteUrl
-        );
-
-        setError(
-          "Link do convite copiado!"
-        );
-
-        setTimeout(
-          () => setError(""),
-          2500
-        );
-      } catch {
-        setError(
-          "Não foi possível compartilhar o convite."
-        );
       }
     } finally {
       setSharing(false);
     }
+  }
+
+  function openCatalog() {
+    router.push("/filmes");
+  }
+
+  function openTitle(title: SpaceTitle) {
+    /*
+     * O catálogo continuará sendo responsável pela
+     * janela de avaliação. Passamos o título pela URL
+     * para que ele possa abrir diretamente depois.
+     */
+    const key =
+      `${title.mediaType}_${title.mediaId}`;
+
+    router.push(
+      `/filmes?sessionTitle=${encodeURIComponent(
+        key
+      )}`
+    );
   }
 
   if (loading) {
@@ -303,11 +411,11 @@ export default function SalaPage() {
       <main className="retro-grid flex min-h-screen items-center justify-center px-5">
         <div className="text-center">
           <div className="font-pixel text-xs text-cyan-300">
-            CARREGANDO SALA...
+            CARREGANDO SESSÃO...
           </div>
 
           <div className="mt-4 font-retro text-lg text-slate-600">
-            Verificando conexão...
+            Conectando todos os participantes...
           </div>
         </div>
       </main>
@@ -323,7 +431,7 @@ export default function SalaPage() {
           </div>
 
           <h1 className="mt-5 font-pixel text-sm text-white">
-            SALA NÃO ENCONTRADA
+            SESSÃO NÃO ENCONTRADA
           </h1>
 
           <p className="mt-4 text-slate-400">
@@ -338,252 +446,564 @@ export default function SalaPage() {
             }
             className="mt-8 rounded-xl bg-pink-500 px-6 py-4 font-pixel text-[10px] text-white"
           >
-            VOLTAR
+            VOLTAR AO INÍCIO
           </button>
         </section>
       </main>
     );
   }
 
-  const isHost =
-    !!profile &&
-    profile &&
-    members.some(
-      (member) =>
-        member.uid === space.hostUid
-    );
-
-  const minimum =
-    space.mode === "couple"
-      ? 2
-      : 3;
-
-  const readyToStart =
-    members.length >= minimum;
-
-  const inviteUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/sala?code=${encodeURIComponent(
-          space.code
-        )}`
-      : `/sala?code=${encodeURIComponent(
-          space.code
-        )}`;
-
-  const qrUrl =
-    `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(
-      inviteUrl
-    )}`;
-
   return (
-    <main className="retro-grid min-h-screen px-5 py-10">
-      <div className="mx-auto max-w-4xl">
+    <main className="retro-grid min-h-screen px-5 pb-16">
+      <div className="mx-auto w-full max-w-6xl">
 
-        <button
-          type="button"
-          onClick={() =>
-            router.push("/")
-          }
-          className="mb-8 font-pixel text-xs text-cyan-300 hover:text-white"
-        >
-          DITO & FEITO
-        </button>
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 py-6">
 
-        <section className="rounded-3xl border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur md:p-10">
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/")
+            }
+            className="flex items-center gap-3"
+          >
+            <img
+              src="/logo.png"
+              alt="Dito & Feito"
+              className="h-10 w-auto max-w-[180px] object-contain"
+            />
+          </button>
 
-          <div className="text-center">
-
-            <div className="font-pixel text-[10px] text-pink-400">
-              {space.mode === "couple"
-                ? "💞 CASALZINHO"
-                : "👾 GRUPINHO"}
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/perfil")
+            }
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-xl">
+              {profile?.avatar || "👤"}
             </div>
 
-            <h1 className="mt-4 font-pixel text-xl text-white md:text-2xl">
-              {space.name}
-            </h1>
+            <div className="hidden text-left sm:block">
+              <div className="font-pixel text-[9px] text-white">
+                {profile?.username ||
+                  "PARTICIPANTE"}
+              </div>
 
-            <p className="mt-3 text-lg text-slate-400">
-              {space.mode === "couple"
-                ? "Convide mais uma pessoa para começar."
-                : "Convide a galera. Vocês precisam de pelo menos 3."}
-            </p>
+              <div className="font-retro text-base text-slate-500">
+                SUA SESSÃO
+              </div>
+            </div>
+          </button>
 
-          </div>
+        </header>
 
-          <div className="mx-auto mt-8 max-w-md rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-6 text-center">
+        <nav className="mt-5 flex gap-2 overflow-x-auto pb-2">
 
-            <div className="font-pixel text-[9px] text-cyan-300">
-              CÓDIGO DA SALA
+          <button
+            type="button"
+            onClick={openCatalog}
+            className="shrink-0 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 font-retro text-xl text-slate-400 transition hover:border-pink-400/30 hover:text-white"
+          >
+            CATÁLOGO
+          </button>
+
+          <button
+            type="button"
+            className="shrink-0 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 font-retro text-xl text-pink-200"
+          >
+            SESSÃO
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                "/filmes/biblioteca"
+              )
+            }
+            className="shrink-0 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 font-retro text-xl text-slate-400 transition hover:border-white/20 hover:text-white"
+          >
+            BIBLIOTECA
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                "/filmes/podio"
+              )
+            }
+            className="shrink-0 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 font-retro text-xl text-slate-400 transition hover:border-white/20 hover:text-white"
+          >
+            PÓDIO
+          </button>
+
+        </nav>
+
+        <section className="mt-8 rounded-3xl border border-pink-400/20 bg-black/30 p-6 shadow-2xl backdrop-blur md:p-8">
+
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+
+            <div>
+
+              <div className="font-pixel text-[9px] text-pink-400">
+                {space.mode === "couple"
+                  ? "💞 CASALZINHO"
+                  : "👾 GRUPINHO"}
+              </div>
+
+              <h1 className="mt-3 font-pixel text-xl text-white sm:text-3xl">
+                {space.name}
+              </h1>
+
+              <p className="mt-3 font-retro text-xl text-slate-400">
+                A sessão está conectada em tempo real.
+              </p>
+
             </div>
 
-            <div className="mt-4 break-all font-pixel text-3xl tracking-[0.15em] text-white md:text-4xl">
-              {space.code}
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-wrap gap-2">
 
               <button
                 type="button"
                 onClick={copyCode}
-                className="rounded-xl border border-cyan-400/30 px-4 py-3 text-sm text-cyan-300 transition hover:border-cyan-300 hover:text-white"
+                className="flex items-center gap-2 rounded-xl border border-cyan-400/30 px-4 py-3 text-sm text-cyan-300 transition hover:border-cyan-300 hover:text-white"
               >
-                📋 COPIAR CÓDIGO
+                {copied ? (
+                  <Check size={16} />
+                ) : (
+                  <Copy size={16} />
+                )}
+
+                {copied
+                  ? "COPIADO"
+                  : space.code}
               </button>
 
               <button
                 type="button"
                 onClick={shareInvite}
                 disabled={sharing}
-                className="rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 text-sm text-pink-300 transition hover:border-pink-300 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 text-sm text-pink-300 transition hover:border-pink-300 hover:text-white disabled:opacity-50"
               >
+                <Share2 size={16} />
+
                 {sharing
                   ? "ABRINDO..."
-                  : "🔗 COMPARTILHAR CONVITE"}
+                  : "CONVIDAR"}
               </button>
 
             </div>
+
           </div>
 
-          <div className="mt-6 flex justify-center">
-            <div className="rounded-2xl bg-white p-3">
-              <img
-                src={qrUrl}
-                alt={`QR Code para entrar na sala ${space.code}`}
-                width={220}
-                height={220}
-                className="h-[220px] w-[220px]"
-              />
-            </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+            <StatusCard
+              label="PARTICIPANTES"
+              value={`${participantCount}`}
+              detail={
+                space.mode === "couple"
+                  ? "máximo 2"
+                  : "máximo 10"
+              }
+            />
+
+            <StatusCard
+              label="TÍTULOS"
+              value={`${titles.length}`}
+              detail="na sessão"
+            />
+
+            <StatusCard
+              label="PENDÊNCIAS"
+              value={`${myPendingTitles.length}`}
+              detail="para você"
+            />
+
+            <StatusCard
+              label="STATUS"
+              value={
+                allTitlesComplete
+                  ? "OK"
+                  : "VOTANDO"
+              }
+              detail={
+                allTitlesComplete
+                  ? "todos votaram"
+                  : "sessão ativa"
+              }
+            />
+
           </div>
 
-          <p className="mt-4 text-center text-xs text-slate-500">
-            Aponte a câmera do celular para entrar na sala.
-          </p>
+        </section>
 
-          <div className="mt-10">
+        <section className="mt-8">
 
-            <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 
-              <div>
-                <h2 className="font-pixel text-xs text-white">
-                  PARTICIPANTES
-                </h2>
+            <div>
+              <p className="font-pixel text-[9px] text-cyan-300">
+                PARTICIPANTES
+              </p>
 
-                <p className="mt-2 text-sm text-slate-500">
-                  {members.length}/
-                  {space.maxParticipants}
-                </p>
-              </div>
-
-              <div
-                className={`rounded-full px-4 py-2 text-xs ${
-                  readyToStart
-                    ? "bg-green-500/10 text-green-300"
-                    : "bg-yellow-500/10 text-yellow-300"
-                }`}
-              >
-                {readyToStart
-                  ? "PRONTO PARA COMEÇAR"
-                  : `AGUARDANDO ${
-                      Math.max(
-                        minimum -
-                          members.length,
-                        0
-                      )
-                    }`}
-              </div>
-
+              <h2 className="mt-2 font-pixel text-sm text-white">
+                QUEM ESTÁ NA SESSÃO
+              </h2>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+            <button
+              type="button"
+              onClick={() =>
+                window.location.reload()
+              }
+              className="flex items-center gap-2 self-start rounded-xl border border-white/10 px-4 py-3 text-sm text-slate-400 transition hover:border-white/20 hover:text-white"
+            >
+              <RefreshCw size={15} />
+              ATUALIZAR
+            </button>
 
-              {members.map(
-                (member) => (
-                  <div
-                    key={member.uid}
-                    className="rounded-2xl border border-white/10 bg-white/[.03] p-4"
-                  >
-                    <div className="flex items-center gap-3">
+          </div>
 
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-3xl">
-                        {member.avatar}
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+            {members.map(
+              (member) => (
+                <div
+                  key={member.uid}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                >
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/5 text-3xl">
+                      {member.avatar}
+                    </div>
+
+                    <div className="min-w-0">
+
+                      <div className="truncate font-semibold text-white">
+                        {member.username}
                       </div>
 
-                      <div className="min-w-0">
-
-                        <div className="truncate font-semibold text-white">
-                          {member.username}
-                        </div>
-
-                        <div className="mt-1 text-xs text-slate-500">
-                          {member.role ===
-                          "host"
-                            ? "ANFITRIÃO"
-                            : "PARTICIPANTE"}
-                        </div>
-
+                      <div className="mt-1 text-xs text-slate-500">
+                        {member.role ===
+                        "host"
+                          ? "ANFITRIÃO"
+                          : "PARTICIPANTE"}
                       </div>
 
                     </div>
+
                   </div>
-                )
-              )}
-
-            </div>
-          </div>
-
-          {error && (
-            <div
-              className={`mt-6 rounded-xl px-4 py-3 text-center text-sm ${
-                error ===
-                  "Código copiado!" ||
-                error ===
-                  "Link do convite copiado!"
-                  ? "border border-green-400/20 bg-green-500/10 text-green-300"
-                  : "border border-red-400/20 bg-red-500/10 text-red-300"
-              }`}
-            >
-              {error}
-            </div>
-          )}
-
-          <div className="mt-10">
-
-            {isHost ? (
-              <button
-                type="button"
-                onClick={handleStart}
-                disabled={
-                  !readyToStart ||
-                  starting
-                }
-                className="w-full rounded-xl bg-pink-500 px-5 py-5 font-pixel text-xs text-white shadow-[0_0_30px_rgba(255,0,127,.25)] transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {starting
-                  ? "INICIANDO..."
-                  : readyToStart
-                    ? "COMEÇAR SESSÃO →"
-                    : "AGUARDANDO PARTICIPANTES"}
-              </button>
-            ) : (
-              <div className="rounded-xl border border-white/10 bg-white/[.03] px-5 py-5 text-center">
-
-                <div className="font-pixel text-[10px] text-cyan-300">
-                  AGUARDANDO O ANFITRIÃO
                 </div>
-
-                <p className="mt-3 text-sm text-slate-500">
-                  Quando todos estiverem prontos, o anfitrião poderá começar a sessão.
-                </p>
-
-              </div>
+              )
             )}
 
           </div>
 
         </section>
+
+        <section className="mt-10">
+
+          <div>
+            <p className="font-pixel text-[9px] text-pink-400">
+              FILMES E SÉRIES DA SESSÃO
+            </p>
+
+            <h2 className="mt-2 font-pixel text-sm text-white">
+              TÍTULOS PARA TODO MUNDO AVALIAR
+            </h2>
+
+            <p className="mt-3 font-retro text-xl text-slate-500">
+              Cada título precisa receber uma nota de cada participante.
+            </p>
+          </div>
+
+          {!titles.length ? (
+            <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.02] p-10 text-center">
+
+              <div className="text-5xl">
+                🎬
+              </div>
+
+              <h3 className="mt-5 font-pixel text-xs text-white">
+                NENHUM TÍTULO AINDA
+              </h3>
+
+              <p className="mx-auto mt-3 max-w-lg font-retro text-xl text-slate-500">
+                Vá ao catálogo e escolha os filmes ou séries que farão parte da sessão.
+              </p>
+
+              <button
+                type="button"
+                onClick={openCatalog}
+                className="mt-6 rounded-xl bg-pink-500 px-6 py-4 font-pixel text-[9px] text-white transition hover:bg-pink-400"
+              >
+                IR PARA O CATÁLOGO →
+              </button>
+
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-4">
+
+              {titles.map(
+                (title) => {
+                  const key =
+                    `${title.mediaType}_${title.mediaId}`;
+
+                  const stats =
+                    titleStats[key];
+
+                  const titleRatings =
+                    stats?.votes || [];
+
+                  const voteCount =
+                    titleRatings.length;
+
+                  const average =
+                    stats?.average || 0;
+
+                  return (
+                    <div
+                      key={key}
+                      className={`rounded-3xl border p-4 transition sm:p-5 ${
+                        stats?.currentUserVoted
+                          ? "border-white/10 bg-white/[0.025]"
+                          : "border-pink-400/30 bg-pink-500/[0.04]"
+                      }`}
+                    >
+
+                      <div className="flex flex-col gap-5 md:flex-row">
+
+                        <div className="h-36 w-24 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#101522]">
+
+                          {title.posterPath ? (
+                            <img
+                              src={`${TMDB_IMAGE_BASE}${title.posterPath}`}
+                              alt={title.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-center text-xs text-slate-600">
+                              SEM CAPA
+                            </div>
+                          )}
+
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+
+                          <div className="flex flex-wrap items-center gap-2">
+
+                            <span className="flex items-center gap-1 rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">
+                              {title.mediaType ===
+                              "movie" ? (
+                                <Film size={12} />
+                              ) : (
+                                <Tv size={12} />
+                              )}
+
+                              {title.mediaType ===
+                              "movie"
+                                ? "FILME"
+                                : "SÉRIE"}
+                            </span>
+
+                            {title.year && (
+                              <span className="text-xs text-slate-500">
+                                {title.year}
+                              </span>
+                            )}
+
+                          </div>
+
+                          <h3 className="mt-3 font-retro text-2xl text-white">
+                            {title.title}
+                          </h3>
+
+                          <div className="mt-4 flex flex-wrap items-center gap-4">
+
+                            <div>
+                              <div className="font-pixel text-[8px] text-slate-500">
+                                MÉDIA ATUAL
+                              </div>
+
+                              <div className="mt-1 flex items-center gap-2 font-retro text-xl text-yellow-300">
+                                <Star
+                                  size={16}
+                                  fill="currentColor"
+                                />
+
+                                {voteCount
+                                  ? average.toFixed(2)
+                                  : "--"}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="font-pixel text-[8px] text-slate-500">
+                                VOTOS
+                              </div>
+
+                              <div className="mt-1 font-retro text-xl text-white">
+                                {voteCount}/
+                                {totalExpected}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="font-pixel text-[8px] text-slate-500">
+                                SITUAÇÃO
+                              </div>
+
+                              <div
+                                className={`mt-1 font-pixel text-[9px] ${
+                                  stats?.currentUserVoted
+                                    ? "text-green-300"
+                                    : "text-pink-300"
+                                }`}
+                              >
+                                {stats?.currentUserVoted
+                                  ? "SUA NOTA ✓"
+                                  : "FALTA SUA NOTA"}
+                              </div>
+                            </div>
+
+                          </div>
+
+                          <div className="mt-5 flex flex-wrap gap-2">
+
+                            {members.map(
+                              (member) => {
+                                const memberRating =
+                                  titleRatings.find(
+                                    (rating) =>
+                                      rating.uid ===
+                                      member.uid
+                                  );
+
+                                return (
+                                  <div
+                                    key={
+                                      member.uid
+                                    }
+                                    className="rounded-xl border border-white/10 bg-black/20 px-3 py-2"
+                                  >
+                                    <div className="text-xs text-slate-500">
+                                      {member.username}
+                                    </div>
+
+                                    <div
+                                      className={`mt-1 text-sm ${
+                                        memberRating
+                                          ? "text-yellow-300"
+                                          : "text-slate-600"
+                                      }`}
+                                    >
+                                      {memberRating
+                                        ? memberRating.rating.toFixed(
+                                            1
+                                          )
+                                        : "—"}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            )}
+
+                          </div>
+
+                          <div className="mt-5">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openTitle(title)
+                              }
+                              className={`flex items-center gap-2 rounded-xl px-5 py-3 font-pixel text-[9px] transition ${
+                                stats?.currentUserVoted
+                                  ? "border border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                                  : "bg-pink-500 text-white hover:bg-pink-400"
+                              }`}
+                            >
+                              {stats?.currentUserVoted
+                                ? "VER NO CATÁLOGO"
+                                : "DAR MINHA NOTA →"}
+
+                              <ExternalLink
+                                size={14}
+                              />
+                            </button>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  );
+                }
+              )}
+
+            </div>
+          )}
+
+        </section>
+
+        {error && (
+          <div className="mt-8 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-10 flex justify-center">
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/")
+            }
+            className="flex items-center gap-2 font-retro text-lg text-slate-500 transition hover:text-white"
+          >
+            <ArrowLeft size={17} />
+            Sair para o início
+          </button>
+
+        </div>
+
       </div>
     </main>
   );
 }
+
+function StatusCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="font-pixel text-[8px] text-slate-500">
+        {label}
+      </div>
+
+      <div className="mt-2 font-pixel text-sm text-white">
+        {value}
+      </div>
+
+      <div className="mt-1 text-xs text-slate-600">
+        {detail}
+      </div>
+    </div>
+  );
+}
+
+const TMDB_IMAGE_BASE =
+  "https://image.tmdb.org/t/p/w500";
