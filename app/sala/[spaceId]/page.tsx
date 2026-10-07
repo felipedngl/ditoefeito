@@ -307,15 +307,15 @@ export default function SalaPage() {
         setRequesting(true);
         setError("");
 
-      if (!space) return;
-      
-      const result =
-        await requestToJoinSpace({
-          space,
-          uid: currentUid,
-          username: profile.username,
-          avatar: profile.avatar,
-        });
+        if (!space || !profile || !currentUid) return;
+        
+        const result =
+          await requestToJoinSpace({
+            space,
+            uid: currentUid,
+            username: profile.username,
+            avatar: profile.avatar,
+          });
 
         if (cancelled) {
           return;
