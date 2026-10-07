@@ -1399,7 +1399,9 @@ onSaved();
 
     </div>
   );
-  function SharedSessionPanel({
+}
+
+function SharedSessionPanel({
   space,
   members,
   titles,
@@ -1554,5 +1556,4 @@ onSaved();
       </div>
     </section>
   );
-}
 }
