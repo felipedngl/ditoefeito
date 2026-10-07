@@ -3,28 +3,25 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
+  ChevronDown,
+  Search,
+  Star,
+  X,
+} from "lucide-react";
+
+import {
   addTitleToSpace,
-  saveSpaceRating,
   subscribeToMembers,
   subscribeToSpace,
   subscribeToSpaceRatings,
   subscribeToSpaceTitles,
+  saveSpaceRating,
   type Space,
   type SpaceMember,
   type SpaceRating,
   type SpaceTitle,
 } from "@/lib/spaces";
-
-import {
-  BookOpen,
-  Film,
-  Search,
-  Trophy,
-  UserRound,
-  X,
-  Star,
-  Tv,
-} from "lucide-react";
 
 import {
   getUserProfile,
@@ -35,6 +32,7 @@ import {
 import {
   getSavedRating,
   saveRating,
+  type SavedRating,
 } from "@/lib/ratings";
 
 type MediaType = "movie" | "tv";
@@ -53,178 +51,116 @@ type MediaItem = {
   popularity: number;
 };
 
-const TMDB_IMAGE_BASE =
-  "https://image.tmdb.org/t/p/w500";
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
 export default function FilmesPage() {
   const router = useRouter();
 
-  const [profile, setProfile] =
-    useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [authUid, setAuthUid] = useState<string | null>(null);
 
-  const [authUid, setAuthUid] = useState("");
+  const [activeSpace, setActiveSpace] = useState<Space | null>(null);
+  const [spaceMembers, setSpaceMembers] = useState<SpaceMember[]>([]);
+  const [spaceTitles, setSpaceTitles] = useState<SpaceTitle[]>([]);
+  const [spaceRatings, setSpaceRatings] = useState<
+    Record<string, SpaceRating[]>
+  >({});
 
-  const [activeSpace, setActiveSpace] =
-  useState<Space | null>(null);
+  const [searchType, setSearchType] = useState<MediaType>("movie");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<MediaItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const [spaceMembers, setSpaceMembers] =
-    useState<SpaceMember[]>([]);
-  
-  const [spaceTitles, setSpaceTitles] =
-    useState<SpaceTitle[]>([]);
-  
-  const [spaceRatings, setSpaceRatings] =
-    useState<Record<string, SpaceRating[]>>({});
+  const [popularMovies, setPopularMovies] = useState<MediaItem[]>([]);
+  const [popularTv, setPopularTv] = useState<MediaItem[]>([]);
+  const [popularLoading, setPopularLoading] = useState(true);
 
-  const [loading, setLoading] = useState(true);
-
-  const [searchType, setSearchType] =
-    useState<MediaType>("movie");
-
-  const [searchTerm, setSearchTerm] =
-    useState("");
-
-  const [searchResults, setSearchResults] =
-    useState<MediaItem[]>([]);
-
-  const [searchLoading, setSearchLoading] =
-    useState(false);
-
-  const [popularMovies, setPopularMovies] =
-    useState<MediaItem[]>([]);
-
-  const [popularTv, setPopularTv] =
-    useState<MediaItem[]>([]);
-
-  const [popularLoading, setPopularLoading] =
-    useState(true);
-
-  const [selectedItem, setSelectedItem] =
-    useState<MediaItem | null>(null);
-
-  const [ratingOpen, setRatingOpen] =
-    useState(false);
+  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+  const [ratingOpen, setRatingOpen] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = subscribeToAuth(
-      async (user) => {
-        if (!user) {
-          router.replace("/");
-          return;
-        }
-
-        try {
-          const userProfile =
-            await getUserProfile(user.uid);
-
-          if (!userProfile) {
-            router.replace("/configurar");
-            return;
-          }
-
-          setAuthUid(user.uid);
-          setProfile(userProfile);
-        } catch (error) {
-          console.error(error);
-        } finally {
-          setLoading(false);
-        }
+    const unsubscribe = subscribeToAuth(async (user) => {
+      if (!user) {
+        setAuthUid(null);
+        setProfile(null);
+        return;
       }
-    );
 
-    return () => unsubscribe();
-  }, [router]);
+      setAuthUid(user.uid);
+
+      try {
+        const userProfile = await getUserProfile(user.uid);
+        setProfile(userProfile);
+      } catch (error) {
+        console.error("Erro ao carregar perfil:", error);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
-  if (!profile) return;
+    if (typeof window === "undefined") return;
 
-  if (profile.mode === "solo") {
-    setActiveSpace(null);
-    return;
-  }
+    const storedSpace = sessionStorage.getItem("ditoefeito_active_space");
 
-  const raw =
-    sessionStorage.getItem(
-      "ditoefeito_space"
-    );
+    if (!storedSpace) return;
 
-  if (!raw) {
-    return;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Space;
-
-    if (parsed?.id) {
+    try {
+      const parsed = JSON.parse(storedSpace) as Space;
       setActiveSpace(parsed);
+    } catch {
+      sessionStorage.removeItem("ditoefeito_active_space");
     }
-  } catch (error) {
-    console.error(
-      "Não foi possível recuperar a sala:",
-      error
-    );
-  }
-}, [profile]);
+  }, []);
 
   useEffect(() => {
-  if (
-    !activeSpace ||
-    !profile ||
-    profile.mode === "solo"
-  ) {
-    setSpaceMembers([]);
-    setSpaceTitles([]);
-    setSpaceRatings({});
-    return;
-  }
+    if (!activeSpace) {
+      setSpaceMembers([]);
+      setSpaceTitles([]);
+      setSpaceRatings({});
+      return;
+    }
 
-  const unsubscribeSpace =
-    subscribeToSpace(
+    const unsubscribeSpace = subscribeToSpace(
       activeSpace.id,
-      (nextSpace) => {
-        if (nextSpace) {
-          setActiveSpace(nextSpace);
+      (space) => {
+        setActiveSpace(space);
 
+        if (typeof window !== "undefined") {
           sessionStorage.setItem(
-            "ditoefeito_space",
-            JSON.stringify(nextSpace)
+            "ditoefeito_active_space",
+            JSON.stringify(space)
           );
         }
       }
     );
 
-  const unsubscribeMembers =
-    subscribeToMembers(
+    const unsubscribeMembers = subscribeToMembers(
       activeSpace.id,
       setSpaceMembers
     );
 
-  const unsubscribeTitles =
-    subscribeToSpaceTitles(
+    const unsubscribeTitles = subscribeToSpaceTitles(
       activeSpace.id,
       setSpaceTitles
     );
 
-  return () => {
-    unsubscribeSpace();
-    unsubscribeMembers();
-    unsubscribeTitles();
-  };
-}, [activeSpace?.id, profile]);
+    return () => {
+      unsubscribeSpace();
+      unsubscribeMembers();
+      unsubscribeTitles();
+    };
+  }, [activeSpace?.id]);
 
   useEffect(() => {
-  if (
-    !activeSpace ||
-    !spaceTitles.length
-  ) {
-    setSpaceRatings({});
-    return;
-  }
+    if (!activeSpace || spaceTitles.length === 0) {
+      setSpaceRatings({});
+      return;
+    }
 
-  const unsubscribers =
-    spaceTitles.map((title) => {
-      const key =
-        `${title.mediaType}_${title.mediaId}`;
+    const unsubscribers = spaceTitles.map((title) => {
+      const key = `${title.mediaType}_${title.mediaId}`;
 
       return subscribeToSpaceRatings(
         activeSpace.id,
@@ -239,37 +175,33 @@ export default function FilmesPage() {
       );
     });
 
-  return () => {
-    unsubscribers.forEach(
-      (unsubscribe) => unsubscribe()
-    );
-  };
-}, [
-  activeSpace?.id,
-  spaceTitles,
-]);
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [activeSpace?.id, spaceTitles]);
 
   useEffect(() => {
     async function loadPopular() {
       try {
         setPopularLoading(true);
 
-        const response = await fetch(
-          "/api/tmdb?action=popular"
-        );
+        const [moviesResponse, tvResponse] = await Promise.all([
+          fetch("/api/tmdb?type=popular&mediaType=movie"),
+          fetch("/api/tmdb?type=popular&mediaType=tv"),
+        ]);
 
-        if (!response.ok) {
-          throw new Error(
-            "Não foi possível carregar os populares."
-          );
+        const moviesData = await moviesResponse.json();
+        const tvData = await tvResponse.json();
+
+        if (moviesData.results) {
+          setPopularMovies(moviesData.results);
         }
 
-        const data = await response.json();
-
-        setPopularMovies(data.movies || []);
-        setPopularTv(data.tv || []);
+        if (tvData.results) {
+          setPopularTv(tvData.results);
+        }
       } catch (error) {
-        console.error(error);
+        console.error("Erro ao carregar catálogo:", error);
       } finally {
         setPopularLoading(false);
       }
@@ -283,52 +215,143 @@ export default function FilmesPage() {
 
     if (!term) {
       setSearchResults([]);
-      setSearchLoading(false);
       return;
     }
 
-    const timer = window.setTimeout(
-      async () => {
-        try {
-          setSearchLoading(true);
+    const timeout = window.setTimeout(async () => {
+      try {
+        setSearchLoading(true);
 
-          const response = await fetch(
-            `/api/tmdb?action=search&type=${searchType}&query=${encodeURIComponent(
-              term
-            )}`
-          );
+        const response = await fetch(
+          `/api/tmdb?type=search&mediaType=${searchType}&query=${encodeURIComponent(
+            term
+          )}`
+        );
 
-          if (!response.ok) {
-            throw new Error(
-              "Não foi possível realizar a busca."
-            );
-          }
+        const data = await response.json();
 
-          const data =
-            await response.json();
+        setSearchResults(data.results || []);
+      } catch (error) {
+        console.error("Erro na busca:", error);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 350);
 
-          setSearchResults(
-            data.results || []
-          );
-        } catch (error) {
-          console.error(error);
-          setSearchResults([]);
-        } finally {
-          setSearchLoading(false);
-        }
-      },
-      450
-    );
-
-    return () =>
-      window.clearTimeout(timer);
+    return () => window.clearTimeout(timeout);
   }, [searchTerm, searchType]);
 
-  function changeSearchType(
-    type: MediaType
-  ) {
+  /*
+   * Abre automaticamente títulos vindos de:
+   *
+   * /filmes?edit=movie_123
+   *
+   * ou
+   *
+   * /filmes?sessionTitle=movie_123
+   *
+   * Isso permite editar títulos pela Biblioteca e
+   * abrir títulos diretamente pela Sala.
+   */
+  useEffect(() => {
+    if (!authUid) return;
+
+    const params = new URLSearchParams(window.location.search);
+
+    const editKey = params.get("edit");
+    const sessionKey = params.get("sessionTitle");
+
+    if (!editKey && !sessionKey) return;
+
+    let cancelled = false;
+
+    async function openFromUrl() {
+      try {
+        if (editKey) {
+          const separator = editKey.indexOf("_");
+
+          if (separator <= 0) return;
+
+          const type = editKey.slice(0, separator) as MediaType;
+          const id = Number(editKey.slice(separator + 1));
+
+          if (
+            !["movie", "tv"].includes(type) ||
+            !Number.isFinite(id)
+          ) {
+            return;
+          }
+
+          const saved = await getSavedRating(
+            authUid!,
+            type,
+            id
+          );
+
+          if (!saved || cancelled) return;
+
+          setSelectedItem({
+            id: saved.mediaId,
+            type: saved.mediaType,
+            title: saved.title,
+            originalTitle: saved.originalTitle,
+            overview: saved.overview,
+            posterPath: saved.posterPath,
+            backdropPath: null,
+            year: saved.year,
+            rating: saved.tmdbRating,
+            voteCount: saved.tmdbVoteCount,
+            popularity: 0,
+          });
+
+          setRatingOpen(true);
+
+          return;
+        }
+
+        if (sessionKey && spaceTitles.length > 0) {
+          const title = spaceTitles.find(
+            (item) =>
+              `${item.mediaType}_${item.mediaId}` ===
+              sessionKey
+          );
+
+          if (!title || cancelled) return;
+
+          setSelectedItem({
+            id: title.mediaId,
+            type: title.mediaType,
+            title: title.title,
+            originalTitle: title.originalTitle,
+            overview: title.overview,
+            posterPath: title.posterPath,
+            backdropPath: null,
+            year: title.year,
+            rating: title.tmdbRating,
+            voteCount: title.tmdbVoteCount,
+            popularity: 0,
+          });
+
+          setRatingOpen(true);
+        }
+      } catch (error) {
+        console.error(
+          "Não foi possível abrir o título:",
+          error
+        );
+      }
+    }
+
+    openFromUrl();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUid, spaceTitles]);
+
+  function changeSearchType(type: MediaType) {
     setSearchType(type);
-    setSearchTerm("");
     setSearchResults([]);
   }
 
@@ -337,21 +360,19 @@ export default function FilmesPage() {
     setSearchResults([]);
   }
 
-  function openRating(
-    item: MediaItem
-  ) {
+  function openRating(item: MediaItem) {
     setSelectedItem(item);
     setRatingOpen(true);
   }
 
-function closeModal() {
+  function closeModal() {
     setSelectedItem(null);
     setRatingOpen(false);
-  
+
     const params = new URLSearchParams(
       window.location.search
     );
-  
+
     if (
       params.get("edit") ||
       params.get("sessionTitle")
@@ -362,563 +383,324 @@ function closeModal() {
     }
   }
 
-  if (loading) {
-    return (
-      <main className="retro-grid flex min-h-screen items-center justify-center">
-        <div className="font-pixel text-sm text-pink-400">
-          CARREGANDO...
-        </div>
-      </main>
-    );
-  }
-
-  if (!profile) {
-    return null;
-  }
-
   return (
-    <main className="retro-grid min-h-screen px-5 pb-16">
-      <div className="mx-auto w-full max-w-7xl">
-
-        <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 py-6">
-
+    <main className="min-h-screen bg-[#070910] text-white">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070910]/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-6">
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="flex items-center gap-3"
-            aria-label="Voltar para o início"
+            className="font-pixel text-sm text-pink-300 transition hover:text-white"
           >
-            <img
-              src="/logo.png"
-              alt="Dito & Feito"
-              className="h-10 w-auto max-w-[180px] object-contain"
-            />
+            DITO & FEITO
           </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/perfil")
-            }
-            className="flex items-center gap-3 rounded-xl px-2 py-1 transition hover:bg-white/[0.04]"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-2xl">
-              {profile.avatar}
-            </div>
+          <nav className="hidden items-center gap-6 md:flex">
+            <button
+              type="button"
+              onClick={() => router.push("/filmes")}
+              className="font-pixel text-[10px] text-cyan-300"
+            >
+              CATÁLOGO
+            </button>
 
-            <div className="hidden text-left sm:block">
-              <div className="font-pixel text-[10px] text-white">
-                {profile.username}
-              </div>
-
-              <div className="font-retro text-lg text-slate-500">
-                @{profile.usernameSlug}
-              </div>
-            </div>
-          </button>
-
-        </header>
-
-        <nav className="mt-5 flex gap-2 overflow-x-auto pb-2">
-
-          <NavButton
-            active
-            icon={<Film size={17} />}
-            label="Catálogo"
-            onClick={() =>
-              router.push("/filmes")
-            }
-          />
-
-          <NavButton
-            icon={<BookOpen size={17} />}
-            label="Biblioteca"
-            onClick={() =>
-              router.push(
-                "/filmes/biblioteca"
-              )
-            }
-          />
-
-          <NavButton
-            icon={<Trophy size={17} />}
-            label="Pódio"
-            onClick={() =>
-              router.push(
-                "/filmes/podio"
-              )
-            }
-          />
-
-          <NavButton
-            icon={<UserRound size={17} />}
-            label="Perfil"
-            onClick={() =>
-              router.push("/perfil")
-            }
-          />
-
-        </nav>
-
-        <section className="mt-12">
-
-          <div className="text-center">
-
-            <p className="font-pixel text-xs text-pink-400">
-              OLÁ,{" "}
-              {profile.username.toUpperCase()}
-            </p>
-
-            <h1 className="mt-5 font-pixel text-2xl leading-relaxed text-white sm:text-4xl">
-              O QUE VOCÊ QUER ASSISTIR?
-            </h1>
-
-            <p className="mx-auto mt-4 max-w-2xl font-retro text-2xl text-slate-400">
-              Escolha filmes ou séries e
-              registre suas sessões.
-            </p>
-
-          </div>
-
-          <div className="mx-auto mt-8 max-w-4xl">
-
-            <div className="mb-4 rounded-2xl border border-white/10 bg-[#0b0f1c]/80 p-2">
-
-              <div className="grid grid-cols-2 gap-2">
-
-                <SearchTypeButton
-                  active={
-                    searchType === "movie"
-                  }
-                  icon={<Film size={18} />}
-                  label="FILMES"
-                  onClick={() =>
-                    changeSearchType(
-                      "movie"
-                    )
-                  }
-                />
-
-                <SearchTypeButton
-                  active={
-                    searchType === "tv"
-                  }
-                  icon={<Tv size={18} />}
-                  label="SÉRIES"
-                  onClick={() =>
-                    changeSearchType("tv")
-                  }
-                />
-
-              </div>
-
-            </div>
-
-            <div className="relative flex items-center gap-3 rounded-2xl border border-pink-400/30 bg-[#101522] px-5 py-5 shadow-[0_0_35px_rgba(255,0,127,0.1)]">
-
-              <Search
-                size={28}
-                className="shrink-0 text-pink-400"
-              />
-
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) =>
-                  setSearchTerm(
-                    event.target.value
-                  )
-                }
-                placeholder={
-                  searchType === "movie"
-                    ? "Digite o nome de um filme..."
-                    : "Digite o nome de uma série..."
-                }
-                className="w-full bg-transparent font-retro text-2xl text-white outline-none placeholder:text-slate-600"
-              />
-
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  className="shrink-0 text-slate-500 transition hover:text-white"
-                  aria-label="Limpar busca"
-                >
-                  <X size={22} />
-                </button>
-              )}
-
-            </div>
-
-            <div className="mt-3 text-center font-retro text-lg text-slate-500">
-              Pesquisando{" "}
-              {searchType === "movie"
-                ? "filmes"
-                : "séries"}
-            </div>
-
-          </div>
-
-        </section>
-
-{activeSpace &&
-  profile.mode !== "solo" &&
-  spaceTitles.length > 0 && (
-    <SharedSessionPanel
-      space={activeSpace}
-      members={spaceMembers}
-      titles={spaceTitles}
-      ratings={spaceRatings}
-      currentUid={authUid}
-      onSelect={(item) => {
-        setSelectedItem(item);
-        setRatingOpen(true);
-      }}
-    />
-  )}
-        
-        {searchTerm.trim() ? (
-          <section className="mt-10">
-
-            <SectionTitle
-              title={
-                searchType === "movie"
-                  ? "RESULTADOS DE FILMES"
-                  : "RESULTADOS DE SÉRIES"
+            <button
+              type="button"
+              onClick={() =>
+                router.push("/filmes/biblioteca")
               }
-            />
+              className="font-pixel text-[10px] text-slate-300 transition hover:text-white"
+            >
+              BIBLIOTECA
+            </button>
 
-            {searchLoading ? (
-              <LoadingMessage />
-            ) : searchResults.length ===
-              0 ? (
-              <EmptyMessage
-                text={`Nenhuma ${
-                  searchType === "movie"
-                    ? "filme"
-                    : "série"
-                } encontrada.`}
-              />
-            ) : (
-              <MediaGrid
-                items={searchResults}
-                onSelect={
-                  setSelectedItem
-                }
-              />
+            <button
+              type="button"
+              onClick={() =>
+                router.push("/filmes/podio")
+              }
+              className="font-pixel text-[10px] text-slate-300 transition hover:text-white"
+            >
+              PÓDIO
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push("/perfil")}
+              className="font-pixel text-[10px] text-slate-300 transition hover:text-white"
+            >
+              PERFIL
+            </button>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            {profile && (
+              <div className="hidden text-right sm:block">
+                <div className="font-retro text-sm text-white">
+                  {profile.avatar} {profile.username}
+                </div>
+
+                <div className="font-pixel text-[8px] uppercase text-pink-300">
+                  {profile.mode === "solo"
+                    ? "SOZINHO"
+                    : profile.mode === "couple"
+                    ? "CASALZINHO"
+                    : "GRUPINHO"}
+                </div>
+              </div>
             )}
 
-          </section>
-        ) : (
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 transition hover:border-pink-400/40 hover:text-white"
+            >
+              <ArrowLeft size={15} />
+              SAIR
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+        <div className="mb-8">
+          <p className="font-pixel text-[9px] uppercase tracking-[0.3em] text-pink-300">
+            SEU CINEMA
+          </p>
+
+          <h1 className="mt-2 font-pixel text-2xl text-white md:text-4xl">
+            CATÁLOGO
+          </h1>
+
+          <p className="mt-3 max-w-2xl font-retro text-base text-slate-400">
+            Encontre filmes e séries, dê sua nota e monte sua
+            própria história no cinema.
+          </p>
+        </div>
+
+        {activeSpace &&
+          profile?.mode !== "solo" &&
+          spaceTitles.length > 0 && (
+            <SharedSessionPanel
+              titles={spaceTitles}
+              ratings={spaceRatings}
+              members={spaceMembers}
+              currentUid={authUid || ""}
+              onOpen={openRating}
+            />
+          )}
+
+        <section className="mb-10">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-5">
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="relative flex-1">
+                <Search
+                  size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                />
+
+                <input
+                  value={searchTerm}
+                  onChange={(event) =>
+                    setSearchTerm(event.target.value)
+                  }
+                  placeholder={
+                    searchType === "movie"
+                      ? "Buscar filme..."
+                      : "Buscar série..."
+                  }
+                  className="w-full rounded-2xl border border-white/10 bg-[#0d111b] py-4 pl-12 pr-12 font-retro text-base text-white outline-none transition placeholder:text-slate-600 focus:border-pink-400/50"
+                />
+
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              <div className="relative">
+                <select
+                  value={searchType}
+                  onChange={(event) =>
+                    changeSearchType(
+                      event.target.value as MediaType
+                    )
+                  }
+                  className="h-full min-w-[150px] appearance-none rounded-2xl border border-white/10 bg-[#0d111b] px-5 py-4 pr-10 font-pixel text-[10px] text-white outline-none focus:border-cyan-400/50"
+                >
+                  <option value="movie">FILMES</option>
+                  <option value="tv">SÉRIES</option>
+                </select>
+
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"
+                />
+              </div>
+            </div>
+
+            {searchTerm && (
+              <div className="mt-5">
+                {searchLoading ? (
+                  <div className="py-8 text-center font-retro text-slate-500">
+                    Procurando...
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className="py-8 text-center font-retro text-slate-500">
+                    Nenhum título encontrado.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                    {searchResults.map((item) => (
+                      <MediaCard
+                        key={`${item.type}_${item.id}`}
+                        item={item}
+                        onClick={() => setSelectedItem(item)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {!searchTerm && (
           <>
+            <CatalogSection
+              title="FILMES EM ALTA"
+              items={popularMovies}
+              loading={popularLoading}
+              onOpen={openRating}
+            />
 
-            <section className="mt-14">
-
-              <SectionTitle title="FILMES POPULARES" />
-
-              {popularLoading ? (
-                <LoadingCarousel />
-              ) : (
-                <MediaCarousel
-                  items={popularMovies}
-                  onSelect={
-                    setSelectedItem
-                  }
-                />
-              )}
-
-            </section>
-
-            <section className="mt-14">
-
-              <SectionTitle title="SÉRIES POPULARES" />
-
-              {popularLoading ? (
-                <LoadingCarousel />
-              ) : (
-                <MediaCarousel
-                  items={popularTv}
-                  onSelect={
-                    setSelectedItem
-                  }
-                />
-              )}
-
-            </section>
-
+            <CatalogSection
+              title="SÉRIES EM ALTA"
+              items={popularTv}
+              loading={popularLoading}
+              onOpen={openRating}
+            />
           </>
         )}
+      </section>
 
-      </div>
+      {selectedItem && !ratingOpen && (
+        <MediaModal
+          item={selectedItem}
+          onClose={closeModal}
+          onRate={() => setRatingOpen(true)}
+        />
+      )}
 
-      {selectedItem &&
-        !ratingOpen && (
-          <MediaModal
-            item={selectedItem}
-            onClose={closeModal}
-            onRate={() =>
-              setRatingOpen(true)
-            }
-          />
-        )}
-
-      {selectedItem &&
-        ratingOpen && (
-      <RatingModal
-        uid={authUid}
-        item={selectedItem}
-        activeSpace={activeSpace}
-        onClose={closeModal}
-        onSaved={closeModal}
-      />
-        )}
-
+      {selectedItem && ratingOpen && authUid && (
+        <RatingModal
+          item={selectedItem}
+          uid={authUid}
+          activeSpace={activeSpace}
+          onClose={closeModal}
+          onSaved={closeModal}
+        />
+      )}
     </main>
   );
 }
 
-function NavButton({
-  icon,
-  label,
-  active = false,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        "flex shrink-0 items-center gap-2 rounded-xl border px-4 py-3 font-retro text-xl transition",
-        active
-          ? "border-pink-400/40 bg-pink-500/10 text-pink-200"
-          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white",
-      ].join(" ")}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function SearchTypeButton({
-  icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        "flex min-h-[58px] items-center justify-center gap-2 rounded-xl border px-5 py-3 font-pixel text-[10px] transition",
-        active
-          ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200 shadow-[0_0_18px_rgba(0,240,255,0.12)]"
-          : "border-white/10 bg-white/[0.03] text-slate-500 hover:text-white",
-      ].join(" ")}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function SectionTitle({
+function CatalogSection({
   title,
+  items,
+  loading,
+  onOpen,
 }: {
   title: string;
-}) {
-  return (
-    <div className="mb-5 flex items-center gap-4">
-
-      <div className="h-px flex-1 bg-white/10" />
-
-      <h2 className="font-pixel text-xs text-cyan-300">
-        {title}
-      </h2>
-
-      <div className="h-px flex-1 bg-white/10" />
-
-    </div>
-  );
-}
-
-function MediaCarousel({
-  items,
-  onSelect,
-}: {
   items: MediaItem[];
-  onSelect: (
-    item: MediaItem
-  ) => void;
-}) {
-  if (!items.length) {
-    return (
-      <EmptyMessage text="Nenhum título disponível no momento." />
-    );
-  }
-
-  return (
-    <div className="flex gap-5 overflow-x-auto pb-5 [scrollbar-width:thin]">
-
-      {items.map((item) => (
-        <MediaCard
-          key={`${item.type}-${item.id}`}
-          item={item}
-          onSelect={onSelect}
-        />
-      ))}
-
-    </div>
-  );
-}
-
-function MediaGrid({
-  items,
-  onSelect,
-}: {
-  items: MediaItem[];
-  onSelect: (
-    item: MediaItem
-  ) => void;
+  loading: boolean;
+  onOpen: (item: MediaItem) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+    <section className="mb-12">
+      <div className="mb-5 flex items-end justify-between">
+        <div>
+          <p className="font-pixel text-[9px] text-cyan-300">
+            DESCUBRA
+          </p>
 
-      {items.map((item) => (
-        <MediaCard
-          key={`${item.type}-${item.id}`}
-          item={item}
-          onSelect={onSelect}
-        />
-      ))}
+          <h2 className="mt-1 font-pixel text-lg text-white md:text-xl">
+            {title}
+          </h2>
+        </div>
+      </div>
 
-    </div>
+      {loading ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={index}
+              className="aspect-[2/3] animate-pulse rounded-2xl border border-white/5 bg-white/5"
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {items.map((item) => (
+            <MediaCard
+              key={`${item.type}_${item.id}`}
+              item={item}
+              onClick={() => onOpen(item)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
 function MediaCard({
   item,
-  onSelect,
+  onClick,
 }: {
   item: MediaItem;
-  onSelect: (
-    item: MediaItem
-  ) => void;
+  onClick: () => void;
 }) {
-  const poster = item.posterPath
-    ? `${TMDB_IMAGE_BASE}${item.posterPath}`
-    : null;
-
   return (
     <button
       type="button"
-      onClick={() => onSelect(item)}
-      className="group w-[145px] shrink-0 text-left sm:w-[165px]"
+      onClick={onClick}
+      className="group min-w-0 text-left"
     >
-
-      <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-[#101522] shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition duration-300 group-hover:-translate-y-2 group-hover:border-pink-400/50 group-hover:shadow-[0_15px_35px_rgba(255,0,127,0.18)]">
-
-        {poster ? (
+      <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-[#101522]">
+        {item.posterPath ? (
           <img
-            src={poster}
+            src={`${TMDB_IMAGE_BASE}${item.posterPath}`}
             alt={item.title}
             className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            loading="lazy"
           />
         ) : (
-          <div className="flex h-full items-center justify-center p-4 text-center font-retro text-xl text-slate-600">
-            SEM CAPA
+          <div className="flex h-full items-center justify-center p-4 text-center font-retro text-sm text-slate-500">
+            Sem imagem
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent p-3 pt-12">
-
-          <div className="flex items-center gap-1 text-yellow-300">
-
-            <Star
-              size={12}
-              fill="currentColor"
-            />
-
-            <span className="font-pixel text-[9px]">
-              {item.rating > 0
-                ? item.rating.toFixed(1)
-                : "--"}
-            </span>
-
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent p-3 pt-12">
+          <div className="flex items-center gap-1 font-pixel text-[9px] text-yellow-300">
+            <Star size={11} fill="currentColor" />
+            {item.rating?.toFixed(1) || "--"}
           </div>
-
         </div>
-
       </div>
 
-      <div className="mt-3">
-
-        <div className="line-clamp-2 font-retro text-xl leading-tight text-white">
-          {item.title}
-        </div>
-
-        {item.year && (
-          <div className="mt-1 font-retro text-base text-slate-500">
-            {item.year}
-          </div>
-        )}
-
+      <div className="mt-2 line-clamp-2 font-retro text-sm text-white transition group-hover:text-pink-300">
+        {item.title}
       </div>
 
+      <div className="mt-1 font-pixel text-[8px] uppercase text-slate-500">
+        {item.year || "—"}
+      </div>
     </button>
-  );
-}
-
-function LoadingCarousel() {
-  return (
-    <div className="flex gap-5 overflow-hidden">
-
-      {Array.from({ length: 7 }).map(
-        (_, index) => (
-          <div
-            key={index}
-            className="h-[260px] w-[145px] shrink-0 animate-pulse rounded-2xl border border-white/5 bg-white/[0.04] sm:w-[165px]"
-          />
-        )
-      )}
-
-    </div>
-  );
-}
-
-function LoadingMessage() {
-  return (
-    <div className="flex min-h-[220px] items-center justify-center rounded-3xl border border-white/5 bg-white/[0.02]">
-      <p className="font-retro text-2xl text-cyan-300">
-        PROCURANDO...
-      </p>
-    </div>
-  );
-}
-
-function EmptyMessage({
-  text,
-}: {
-  text: string;
-}) {
-  return (
-    <div className="flex min-h-[180px] items-center justify-center rounded-3xl border border-white/5 bg-white/[0.02]">
-      <p className="font-retro text-xl text-slate-600">
-        {text}
-      </p>
-    </div>
   );
 }
 
@@ -931,220 +713,146 @@ function MediaModal({
   onClose: () => void;
   onRate: () => void;
 }) {
-  const poster = item.posterPath
-    ? `${TMDB_IMAGE_BASE}${item.posterPath}`
-    : null;
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-5 backdrop-blur-sm"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      onMouseDown={onClose}
     >
-
       <div
-        className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-[#0b0f1c] shadow-[0_0_80px_rgba(0,0,0,0.8)]"
-        onClick={(event) =>
-          event.stopPropagation()
-        }
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0d111b] shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
       >
+        <div className="relative">
+          {item.backdropPath || item.posterPath ? (
+            <img
+              src={`${TMDB_IMAGE_BASE}${
+                item.backdropPath || item.posterPath
+              }`}
+              alt={item.title}
+              className="h-56 w-full object-cover"
+            />
+          ) : null}
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white transition hover:bg-pink-500/30"
-          aria-label="Fechar"
-        >
-          <X size={20} />
-        </button>
-
-        <div className="grid md:grid-cols-[220px_1fr]">
-
-          <div className="bg-black/30 p-5 md:p-7">
-
-            {poster ? (
-              <img
-                src={poster}
-                alt={item.title}
-                className="mx-auto w-full max-w-[220px] rounded-2xl object-cover shadow-2xl"
-              />
-            ) : (
-              <div className="flex aspect-[2/3] items-center justify-center rounded-2xl bg-white/[0.03] font-retro text-xl text-slate-600">
-                SEM CAPA
-              </div>
-            )}
-
-          </div>
-
-          <div className="p-6 md:p-8">
-
-            <div className="flex items-center gap-2 font-pixel text-[9px] text-pink-400">
-
-              {item.type === "movie" ? (
-                <>
-                  <Film size={14} />
-                  FILME
-                </>
-              ) : (
-                <>
-                  <Tv size={14} />
-                  SÉRIE
-                </>
-              )}
-
-            </div>
-
-            <h2 className="mt-4 font-pixel text-xl leading-relaxed text-white sm:text-3xl">
-              {item.title}
-            </h2>
-
-            {item.originalTitle &&
-              item.originalTitle !==
-                item.title && (
-                <p className="mt-2 font-retro text-xl text-slate-500">
-                  {item.originalTitle}
-                </p>
-              )}
-
-            <div className="mt-4 flex flex-wrap items-center gap-4">
-
-              {item.year && (
-                <span className="font-retro text-xl text-slate-400">
-                  {item.year}
-                </span>
-              )}
-
-              <span className="flex items-center gap-1 font-retro text-xl text-yellow-300">
-
-                <Star
-                  size={16}
-                  fill="currentColor"
-                />
-
-                {item.rating > 0
-                  ? item.rating.toFixed(1)
-                  : "--"}
-
-              </span>
-
-              <span className="font-retro text-lg text-slate-500">
-                {item.voteCount.toLocaleString(
-                  "pt-BR"
-                )}{" "}
-                votos TMDB
-              </span>
-
-            </div>
-
-            <div className="mt-7">
-
-              <p className="font-pixel text-[9px] text-cyan-300">
-                SINOPSE
-              </p>
-
-              <p className="mt-3 font-retro text-xl leading-relaxed text-slate-300">
-                {item.overview}
-              </p>
-
-            </div>
-
-            <div className="mt-8">
-
-              <button
-                type="button"
-                className="rounded-2xl border border-pink-400/40 bg-pink-500/10 px-6 py-4 font-pixel text-[10px] text-pink-200 transition hover:border-pink-300 hover:bg-pink-500/20"
-                onClick={onRate}
-              >
-                AVALIAR ESTE TÍTULO
-              </button>
-
-            </div>
-
-          </div>
-
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-full border border-white/10 bg-black/60 p-2 text-white"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-      </div>
+        <div className="p-6">
+          <div className="font-pixel text-[9px] uppercase text-cyan-300">
+            {item.type === "movie" ? "FILME" : "SÉRIE"}
+          </div>
 
+          <h2 className="mt-2 font-pixel text-xl text-white">
+            {item.title}
+          </h2>
+
+          {item.year && (
+            <div className="mt-2 font-retro text-sm text-slate-500">
+              {item.year}
+            </div>
+          )}
+
+          <div className="mt-5 flex items-center gap-2 font-retro text-base text-yellow-300">
+            <Star size={18} fill="currentColor" />
+            {item.rating?.toFixed(1) || "--"}
+          </div>
+
+          {item.overview && (
+            <p className="mt-5 font-retro text-base leading-relaxed text-slate-300">
+              {item.overview}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onRate}
+            className="mt-7 w-full rounded-2xl bg-pink-500 px-5 py-4 font-pixel text-[10px] text-white transition hover:bg-pink-400"
+          >
+            AVALIAR ESTE TÍTULO
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 function RatingModal({
-  uid,
   item,
+  uid,
+  activeSpace,
   onClose,
   onSaved,
-  activeSpace,
 }: {
-  uid: string;
   item: MediaItem;
+  uid: string;
+  activeSpace: Space | null;
   onClose: () => void;
   onSaved: () => void;
-  activeSpace: Space | null;
 }) {
-  
-  const [rating, setRating] =
-    useState(0);
-
-  const [review, setReview] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [review, setReview] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadExisting() {
       try {
-        const existing =
-          await getSavedRating(
-            uid,
-            item.type,
-            item.id
-          );
+        setLoading(true);
+
+        const existing = await getSavedRating(
+          uid,
+          item.type,
+          item.id
+        );
+
+        if (cancelled) return;
 
         if (existing) {
-          setRating(
-            existing.rating
-          );
-
-          setReview(
-            existing.review || ""
-          );
+          setRating(existing.rating);
+          setReview(existing.review || "");
+        } else {
+          setRating(0);
+          setReview("");
         }
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(
+          "Erro ao carregar avaliação:",
+          error
+        );
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     loadExisting();
-  }, [uid, item]);
 
-  function chooseStar(
-    index: number
-  ) {
-    const half = index + 0.5;
-    const full = index + 1;
+    return () => {
+      cancelled = true;
+    };
+  }, [uid, item.id, item.type]);
 
-    if (rating === half) {
-      setRating(full);
+  function selectRating(star: number) {
+    if (rating === star) {
+      setRating(star - 0.5);
     } else {
-      setRating(half);
+      setRating(star);
     }
   }
 
   async function handleSave() {
-    if (rating < 0.5) {
-      setError(
-        "Escolha uma nota antes de salvar."
-      );
+    if (rating <= 0) {
+      setError("Escolha uma nota antes de salvar.");
       return;
     }
 
@@ -1152,382 +860,277 @@ function RatingModal({
       setSaving(true);
       setError("");
 
-await saveRating(uid, {
-  mediaId: item.id,
-  mediaType: item.type,
-  title: item.title,
-  originalTitle:
-    item.originalTitle,
-  overview: item.overview,
-  posterPath:
-    item.posterPath,
-  year: item.year,
-  tmdbRating: item.rating,
-  tmdbVoteCount:
-    item.voteCount,
-  rating,
-  review: review.trim(),
-});
+      await saveRating(uid, {
+        mediaId: item.id,
+        mediaType: item.type,
+        title: item.title,
+        originalTitle: item.originalTitle,
+        overview: item.overview,
+        posterPath: item.posterPath,
+        year: item.year,
+        tmdbRating: item.rating,
+        tmdbVoteCount: item.voteCount,
+        rating,
+        review: review.trim(),
+      });
 
-if (activeSpace) {
-  await addTitleToSpace(
-    activeSpace.id,
-    {
-      mediaId: item.id,
-      mediaType: item.type,
-      title: item.title,
-      originalTitle:
-        item.originalTitle,
-      overview: item.overview,
-      posterPath:
-        item.posterPath,
-      year: item.year,
-      tmdbRating: item.rating,
-      tmdbVoteCount:
-        item.voteCount,
-      addedBy: uid,
-    }
-  );
+      if (activeSpace) {
+        await addTitleToSpace(activeSpace.id, {
+          mediaId: item.id,
+          mediaType: item.type,
+          title: item.title,
+          originalTitle: item.originalTitle,
+          overview: item.overview,
+          posterPath: item.posterPath,
+          year: item.year,
+          tmdbRating: item.rating,
+          tmdbVoteCount: item.voteCount,
+          addedBy: uid,
+        });
 
-  await saveSpaceRating(
-    activeSpace.id,
-    item.type,
-    item.id,
-    {
-      uid,
-      value: rating,
-      review: review.trim(),
-    }
-  );
-}
+        await saveSpaceRating(
+          activeSpace.id,
+          item.type,
+          item.id,
+          {
+            uid,
+            value: rating,
+            review: review.trim(),
+          }
+        );
+      }
 
-onSaved();
-    } catch (err) {
-      console.error(err);
+      onSaved();
+    } catch (error) {
+      console.error("Erro ao salvar avaliação:", error);
 
       setError(
-        "Não foi possível salvar sua avaliação."
+        "Não foi possível salvar agora. Tente novamente."
       );
-
+    } finally {
       setSaving(false);
     }
   }
 
+  const displayedRating = hoverRating || rating;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/85 p-5 backdrop-blur-sm"
-      onClick={onClose}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+      onMouseDown={onClose}
     >
-
       <div
-        className="relative w-full max-w-2xl rounded-3xl border border-pink-400/30 bg-[#0b0f1c] p-6 shadow-[0_0_80px_rgba(255,0,127,0.15)] sm:p-8"
-        onClick={(event) =>
-          event.stopPropagation()
-        }
+        className="w-full max-w-xl rounded-3xl border border-white/10 bg-[#0d111b] p-6 shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
       >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="font-pixel text-[9px] uppercase text-pink-300">
+              SUA NOTA
+            </div>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white transition hover:bg-pink-500/30"
-          aria-label="Fechar"
-        >
-          <X size={20} />
-        </button>
+            <h2 className="mt-2 font-pixel text-lg text-white">
+              {item.title}
+            </h2>
+          </div>
 
-        <div className="pr-10">
-
-          <p className="font-pixel text-[9px] text-pink-400">
-            {item.type === "movie"
-              ? "AVALIAR FILME"
-              : "AVALIAR SÉRIE"}
-          </p>
-
-          <h2 className="mt-4 font-pixel text-xl leading-relaxed text-white sm:text-2xl">
-            {item.title}
-          </h2>
-
-          {item.year && (
-            <p className="mt-2 font-retro text-xl text-slate-500">
-              {item.year}
-            </p>
-          )}
-
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/10 p-2 text-slate-400 hover:text-white"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {loading ? (
-          <div className="flex min-h-[220px] items-center justify-center">
-            <p className="font-retro text-2xl text-cyan-300">
-              CARREGANDO SUA NOTA...
-            </p>
+          <div className="py-12 text-center font-retro text-slate-500">
+            Carregando sua avaliação...
           </div>
         ) : (
           <>
-
             <div className="mt-8">
-
-              <p className="font-pixel text-[9px] text-cyan-300">
-                SUA NOTA
-              </p>
-
-              <p className="mt-2 font-retro text-xl text-slate-400">
-                {rating > 0
-                  ? rating.toFixed(1)
-                  : "Escolha de 0,5 a 10"}
-              </p>
-
-              <div className="mt-5 grid grid-cols-5 gap-2 sm:grid-cols-10">
-
-                {Array.from({
-                  length: 10,
-                }).map((_, index) => {
-
-                  const value =
-                    index + 1;
-
-                  const filled =
-                    rating >= value;
-
-                  const half =
-                    rating ===
-                    value - 0.5;
-
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() =>
-                        chooseStar(index)
-                      }
-                      className="group flex flex-col items-center rounded-xl border border-white/5 bg-white/[0.03] px-1 py-2 transition hover:border-yellow-300/40 hover:bg-yellow-300/5"
-                      aria-label={`Dar ${
-                        half
-                          ? value - 0.5
-                          : value
-                      } estrelas`}
-                    >
-
-                      <span className="relative block text-3xl leading-none text-slate-600">
-
-                        <span className="block">
-                          ★
-                        </span>
-
-                        {half && (
-                          <span className="absolute inset-y-0 left-0 w-1/2 overflow-hidden text-yellow-300">
-                            ★
-                          </span>
-                        )}
-
-                        {filled && (
-                          <span className="absolute inset-0 text-yellow-300">
-                            ★
-                          </span>
-                        )}
-
-                      </span>
-
-                      <span className="mt-1 font-pixel text-[7px] text-slate-500">
-                        {value}
-                      </span>
-
-                    </button>
-                  );
-                })}
-
+              <div className="mb-3 font-pixel text-[9px] text-slate-400">
+                DE 0,5 A 10
               </div>
 
-              <p className="mt-3 font-retro text-lg text-slate-500">
-                Clique uma vez para meia
-                estrela e novamente na
-                mesma estrela para completar.
-              </p>
+              <div className="flex flex-wrap gap-1">
+                {Array.from({ length: 10 }).map(
+                  (_, index) => {
+                    const star = index + 1;
+                    const isFull =
+                      displayedRating >= star;
+                    const isHalf =
+                      displayedRating >= star - 0.5 &&
+                      displayedRating < star;
 
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => selectRating(star)}
+                        onMouseEnter={() =>
+                          setHoverRating(star)
+                        }
+                        onMouseLeave={() =>
+                          setHoverRating(0)
+                        }
+                        className="relative p-1 text-yellow-300 transition hover:scale-110"
+                        aria-label={`Nota ${star}`}
+                      >
+                        <Star
+                          size={28}
+                          fill={
+                            isFull || isHalf
+                              ? "currentColor"
+                              : "transparent"
+                          }
+                          strokeWidth={1.5}
+                        />
+
+                        {isHalf && (
+                          <span className="pointer-events-none absolute inset-y-0 left-0 flex w-1/2 overflow-hidden">
+                            <Star
+                              size={28}
+                              fill="currentColor"
+                              strokeWidth={1.5}
+                            />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+
+              <div className="mt-3 font-pixel text-sm text-yellow-300">
+                {displayedRating > 0
+                  ? displayedRating.toFixed(1)
+                  : "--"}
+              </div>
             </div>
 
             <div className="mt-7">
-
-              <label className="font-pixel text-[9px] text-cyan-300">
-                SUA CRÍTICA / OPINIÃO
-                (OPCIONAL)
+              <label className="font-pixel text-[9px] text-slate-400">
+                CRÍTICA / COMENTÁRIO
               </label>
 
               <textarea
                 value={review}
                 onChange={(event) =>
-                  setReview(
-                    event.target.value
-                  )
+                  setReview(event.target.value)
                 }
-                maxLength={2000}
-                rows={5}
                 placeholder="O que você achou?"
-                className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-[#080b14] px-4 py-4 font-retro text-xl leading-relaxed text-white outline-none placeholder:text-slate-600 focus:border-pink-400/50"
+                rows={5}
+                className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-[#080b12] p-4 font-retro text-base text-white outline-none placeholder:text-slate-600 focus:border-pink-400/50"
               />
-
-              <div className="mt-2 text-right font-retro text-base text-slate-600">
-                {review.length}/2000
-              </div>
-
             </div>
 
+            {activeSpace && (
+              <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4 font-retro text-sm text-cyan-200">
+                Esta nota também será registrada na sessão
+                compartilhada.
+              </div>
+            )}
+
             {error && (
-              <div className="mt-5 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-center font-retro text-lg text-red-300">
+              <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/5 p-4 font-retro text-sm text-red-300">
                 {error}
               </div>
             )}
 
-            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-4 font-pixel text-[9px] text-slate-400 transition hover:text-white"
-              >
-                CANCELAR
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="rounded-xl border border-pink-300/50 bg-pink-500 px-6 py-4 font-pixel text-[9px] text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving
-                  ? "SALVANDO..."
-                  : activeSpace
-                  ? "SALVAR NOTA NA SESSÃO"
-                  : "SALVAR NA BIBLIOTECA"}
-              </button>
-
-            </div>
-
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="mt-6 w-full rounded-2xl bg-pink-500 px-5 py-4 font-pixel text-[10px] text-white transition hover:bg-pink-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? "SALVANDO..." : "SALVAR NOTA"}
+            </button>
           </>
         )}
-
       </div>
-
     </div>
   );
 }
 
 function SharedSessionPanel({
-  space,
-  members,
   titles,
   ratings,
+  members,
   currentUid,
-  onSelect,
+  onOpen,
 }: {
-  space: Space;
-  members: SpaceMember[];
   titles: SpaceTitle[];
   ratings: Record<string, SpaceRating[]>;
+  members: SpaceMember[];
   currentUid: string;
-  onSelect: (item: MediaItem) => void;
+  onOpen: (item: MediaItem) => void;
 }) {
-  const pending = titles.filter(
-    (title) => {
-      const key =
-        `${title.mediaType}_${title.mediaId}`;
+  const pending = titles.filter((title) => {
+    const key = `${title.mediaType}_${title.mediaId}`;
+    const titleRatings = ratings[key] || [];
 
-      const titleRatings =
-        ratings[key] || [];
+    return !titleRatings.some(
+      (rating) => rating.uid === currentUid
+    );
+  });
 
-      return !titleRatings.some(
-        (rating) =>
-          rating.uid === currentUid
-      );
-    }
-  );
-
-  if (!pending.length) {
+  if (pending.length === 0) {
     return (
-      <section className="mt-10 rounded-3xl border border-green-400/20 bg-green-500/[0.04] p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-pixel text-[9px] text-green-300">
-              SESSÃO CONECTADA
-            </p>
+      <section className="mb-10 rounded-3xl border border-emerald-400/20 bg-emerald-400/5 p-5">
+        <div className="font-pixel text-[10px] text-emerald-300">
+          SESSÃO EM DIA
+        </div>
 
-            <h2 className="mt-2 font-pixel text-sm text-white">
-              {space.name}
-            </h2>
-
-            <p className="mt-2 font-retro text-xl text-slate-400">
-              Todo mundo já deu sua nota nos títulos
-              escolhidos.
-            </p>
-          </div>
-
-          <div className="font-pixel text-[9px] text-green-300">
-            {members.length} PARTICIPANTES
-          </div>
+        <div className="mt-2 font-retro text-base text-slate-300">
+          Todo mundo já deu sua nota nos títulos escolhidos.
         </div>
       </section>
     );
   }
 
   return (
-    <section className="mt-10 rounded-3xl border border-pink-400/30 bg-pink-500/[0.05] p-5 shadow-[0_0_40px_rgba(255,0,127,0.08)]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="font-pixel text-[9px] text-pink-400">
-            {space.mode === "couple"
-              ? "CASALZINHO"
-              : "GRUPINHO"}
-          </p>
+    <section className="mb-10">
+      <div className="mb-5">
+        <p className="font-pixel text-[9px] text-pink-300">
+          SESSÃO COMPARTILHADA
+        </p>
 
-          <h2 className="mt-2 font-pixel text-sm text-white">
-            {space.name}
-          </h2>
+        <h2 className="mt-1 font-pixel text-lg text-white">
+          FALTA SUA NOTA
+        </h2>
 
-          <p className="mt-2 font-retro text-xl text-slate-400">
-            FALTA SUA NOTA
-          </p>
-        </div>
-
-        <div className="font-retro text-lg text-slate-500">
-          {pending.length} título
-          {pending.length !== 1 ? "s" : ""} esperando você
-        </div>
+        <p className="mt-2 font-retro text-sm text-slate-400">
+          Estes títulos estão esperando sua avaliação.
+        </p>
       </div>
 
-      <div className="mt-5 grid gap-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {pending.map((title) => {
-          const key =
-            `${title.mediaType}_${title.mediaId}`;
+          const key = `${title.mediaType}_${title.mediaId}`;
+          const titleRatings = ratings[key] || [];
 
-          const titleRatings =
-            ratings[key] || [];
+          const voteCount = titleRatings.length;
 
-          const voteCount =
-            titleRatings.length;
-          
-          const average =
-            voteCount
-              ? titleRatings.reduce(
-                  (sum, rating) =>
-                    sum + rating.rating,
-                  0
-                ) / voteCount
-              : 0;
+          const average = voteCount
+            ? titleRatings.reduce(
+                (sum, rating) => sum + rating.rating,
+                0
+              ) / voteCount
+            : 0;
 
           const item: MediaItem = {
             id: title.mediaId,
             type: title.mediaType,
             title: title.title,
-            originalTitle:
-              title.originalTitle,
+            originalTitle: title.originalTitle,
             overview: title.overview,
-            posterPath:
-              title.posterPath,
+            posterPath: title.posterPath,
             backdropPath: null,
             year: title.year,
-            rating:
-              title.tmdbRating,
-            voteCount:
-              title.tmdbVoteCount,
+            rating: title.tmdbRating,
+            voteCount: title.tmdbVoteCount,
             popularity: 0,
           };
 
@@ -1535,10 +1138,10 @@ function SharedSessionPanel({
             <button
               key={key}
               type="button"
-              onClick={() => onSelect(item)}
-              className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/20 p-3 text-left transition hover:border-pink-400/40 hover:bg-pink-500/[0.05]"
+              onClick={() => onOpen(item)}
+              className="flex gap-4 rounded-3xl border border-pink-400/20 bg-pink-400/5 p-4 text-left transition hover:border-pink-400/50 hover:bg-pink-400/10"
             >
-              <div className="h-20 w-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.04]">
+              <div className="h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-black/30">
                 {title.posterPath ? (
                   <img
                     src={`${TMDB_IMAGE_BASE}${title.posterPath}`}
@@ -1546,38 +1149,44 @@ function SharedSessionPanel({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-[8px] text-slate-600">
-                    SEM
+                  <div className="flex h-full items-center justify-center font-pixel text-[7px] text-slate-600">
+                    SEM IMAGEM
                   </div>
                 )}
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="font-retro text-xl text-white">
+                <div className="font-pixel text-[8px] text-pink-300">
+                  {title.mediaType === "movie"
+                    ? "FILME"
+                    : "SÉRIE"}
+                </div>
+
+                <div className="mt-2 line-clamp-2 font-retro text-base text-white">
                   {title.title}
                 </div>
 
-              <div className="mt-1 flex flex-wrap gap-3 font-retro text-base text-slate-400">
-                <span>
-                  Média:{" "}
-                  <strong className="text-yellow-300">
-                    {voteCount
-                      ? average.toFixed(2)
-                      : "--"}
-                  </strong>
-                </span>
-              
-                <span>
-                  Votos:{" "}
-                  <strong className="text-white">
-                    {voteCount}/{members.length}
-                  </strong>
-                </span>
-              </div>
-              
-              <div className="mt-2 font-pixel text-[9px] text-pink-300">
-                DAR MINHA NOTA →
-              </div>
+                <div className="mt-3 flex flex-wrap gap-3 font-retro text-sm text-slate-400">
+                  <span>
+                    Média:{" "}
+                    <strong className="text-yellow-300">
+                      {voteCount
+                        ? average.toFixed(2)
+                        : "--"}
+                    </strong>
+                  </span>
+
+                  <span>
+                    Votos:{" "}
+                    <strong className="text-white">
+                      {voteCount}/{members.length}
+                    </strong>
+                  </span>
+                </div>
+
+                <div className="mt-3 font-pixel text-[9px] text-pink-300">
+                  DAR MINHA NOTA →
+                </div>
               </div>
             </button>
           );
