@@ -196,4 +196,14 @@ export async function createSpace(params: {
         params.hostUid,
       username:
         params.hostUsername,
-      avatar
+      avatar:
+        params.hostAvatar,
+      role: "host",
+      joinedAt:
+        serverTimestamp(),
+    }),
+    "Não foi possível registrar o anfitrião."
+  );
+
+  return space;
+}
