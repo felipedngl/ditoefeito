@@ -1,5 +1,6 @@
 "use client";
 
+import { auth } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -125,26 +126,13 @@ export default function PerfilPage() {
        * Aqui estamos alterando somente
        * nome e avatar.
        */
-      const user =
-        await new Promise<
-          import("firebase/auth").User
-        >((resolve, reject) => {
-          const unsubscribe =
-            subscribeToAuth((currentUser) => {
-              unsubscribe();
-
-              if (!currentUser) {
-                reject(
-                  new Error(
-                    "Usuário não autenticado."
-                  )
-                );
-                return;
-              }
-
-              resolve(currentUser);
-            });
-        });
+        const user = auth.currentUser;
+        
+        if (!user) {
+          throw new Error(
+            "Usuário não autenticado."
+          );
+        }
 
       await saveUserProfile(
         user,
