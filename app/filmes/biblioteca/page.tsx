@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -289,14 +290,18 @@ function LibrarySection({
 
           {items.map((item) => (
 
-            <div
-              key={
-                item.mediaType +
-                "-" +
-                item.mediaId
-              }
-              className="min-w-0"
-            >
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                "/filmes?edit=" +
+                  item.mediaType +
+                  "_" +
+                  item.mediaId
+              )
+            }
+            className="group min-w-0 text-left"
+          >
 
               <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-[#101522]">
 
