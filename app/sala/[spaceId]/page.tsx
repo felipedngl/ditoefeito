@@ -37,15 +37,16 @@ import {
   ArrowLeft,
   Check,
   Copy,
-  ExternalLink,
   Film,
-  RefreshCw,
   Share2,
   Star,
   Tv,
   UserCheck,
   UserX,
 } from "lucide-react";
+
+const TMDB_IMAGE_BASE =
+  "https://image.tmdb.org/t/p/w500";
 
 export default function SalaPage() {
   const router = useRouter();
@@ -86,9 +87,6 @@ export default function SalaPage() {
   const [processingRequest, setProcessingRequest] =
     useState("");
 
-  const [requestError, setRequestError] =
-    useState("");
-
   const [error, setError] =
     useState("");
 
@@ -97,6 +95,12 @@ export default function SalaPage() {
 
   const [sharing, setSharing] =
     useState(false);
+
+  /*
+   * =====================================================
+   * CARREGAR USUÁRIO + SALA EM TEMPO REAL
+   * =====================================================
+   */
 
   useEffect(() => {
     let mounted = true;
@@ -119,7 +123,9 @@ export default function SalaPage() {
 
         if (!mounted) return;
 
-        setCurrentUid(user.uid);
+        setCurrentUid(
+          user.uid
+        );
 
         const savedProfile =
           await getUserProfile(
@@ -128,7 +134,9 @@ export default function SalaPage() {
 
         if (!mounted) return;
 
-        setProfile(savedProfile);
+        setProfile(
+          savedProfile
+        );
       } catch (err) {
         console.error(err);
 
@@ -150,7 +158,9 @@ export default function SalaPage() {
         (nextSpace) => {
           if (!mounted) return;
 
-          window.clearTimeout(timeout);
+          window.clearTimeout(
+            timeout
+          );
 
           if (!nextSpace) {
             setSpace(null);
@@ -163,12 +173,24 @@ export default function SalaPage() {
             return;
           }
 
-          setSpace(nextSpace);
+          setSpace(
+            nextSpace
+          );
+
           setLoading(false);
 
           sessionStorage.setItem(
             "ditoefeito_space",
-            JSON.stringify(nextSpace)
+            JSON.stringify(
+              nextSpace
+            )
+          );
+
+          sessionStorage.setItem(
+            "ditoefeito_active_space",
+            JSON.stringify(
+              nextSpace
+            )
           );
         }
       );
@@ -223,15 +245,19 @@ export default function SalaPage() {
     };
   }, [spaceId]);
 
-  const isMember = useMemo(
-    () =>
-      !!currentUid &&
-      members.some(
-        (member) =>
-          member.uid === currentUid
-      ),
-    [members, currentUid]
-  );
+  /*
+   * =====================================================
+   * ESTADO DO USUÁRIO
+   * =====================================================
+   */
+
+  const isMember =
+    !!currentUid &&
+    members.some(
+      (member) =>
+        member.uid ===
+        currentUid
+    );
 
   const isHost =
     !!space &&
@@ -253,6 +279,15 @@ export default function SalaPage() {
       ]
     );
 
+  /*
+   * =====================================================
+   * SOLICITAR ENTRADA
+   *
+   * Isso serve principalmente para quem chegou ao lobby
+   * por um código.
+   * =====================================================
+   */
+
   useEffect(() => {
     if (
       !space ||
@@ -270,36 +305,34 @@ export default function SalaPage() {
     async function requestEntry() {
       try {
         setRequesting(true);
-        setRequestError("");
+        setError("");
 
-        if (!space || !profile) {
-          return;
-        }
-        
         const result =
           await requestToJoinSpace({
             space,
             uid: currentUid,
-            username: profile.username,
-            avatar: profile.avatar,
+            username:
+              profile.username,
+            avatar:
+              profile.avatar,
           });
 
         if (cancelled) {
           return;
         }
 
-        if (result === "full") {
-          setRequestError(
+        if (
+          result === "full"
+        ) {
+          setError(
             "Esta sala já está cheia."
           );
-
-          return;
         }
       } catch (err) {
         console.error(err);
 
         if (!cancelled) {
-          setRequestError(
+          setError(
             err instanceof Error
               ? err.message
               : "Não foi possível solicitar entrada na sala."
@@ -307,7 +340,9 @@ export default function SalaPage() {
         }
       } finally {
         if (!cancelled) {
-          setRequesting(false);
+          setRequesting(
+            false
+          );
         }
       }
     }
@@ -326,6 +361,52 @@ export default function SalaPage() {
     myJoinRequest,
   ]);
 
+  /*
+   * =====================================================
+   * QUANDO O HOST ACEITA
+   *
+   * O Firebase atualiza "members".
+   *
+   * O convidado detecta que virou membro e vai sozinho
+   * para o catálogo.
+   * =====================================================
+   */
+
+  useEffect(() => {
+    if (
+      !space ||
+      !currentUid ||
+      !isMember
+    ) {
+      return;
+    }
+
+    sessionStorage.setItem(
+      "ditoefeito_space",
+      JSON.stringify(space)
+    );
+
+    sessionStorage.setItem(
+      "ditoefeito_active_space",
+      JSON.stringify(space)
+    );
+
+    router.replace(
+      "/filmes"
+    );
+  }, [
+    space,
+    currentUid,
+    isMember,
+    router,
+  ]);
+
+  /*
+   * =====================================================
+   * NOTAS DA SESSÃO
+   * =====================================================
+   */
+
   useEffect(() => {
     if (
       !space ||
@@ -337,25 +418,27 @@ export default function SalaPage() {
     }
 
     const unsubscribers =
-      titles.map((title) => {
-        const key =
-          `${title.mediaType}_${title.mediaId}`;
+      titles.map(
+        (title) => {
+          const key =
+            `${title.mediaType}_${title.mediaId}`;
 
-        return subscribeToSpaceRatings(
-          space.id,
-          title.mediaType,
-          title.mediaId,
-          (nextRatings) => {
-            setRatings(
-              (current) => ({
-                ...current,
-                [key]:
-                  nextRatings,
-              })
-            );
-          }
-        );
-      });
+          return subscribeToSpaceRatings(
+            space.id,
+            title.mediaType,
+            title.mediaId,
+            (nextRatings) => {
+              setRatings(
+                (current) => ({
+                  ...current,
+                  [key]:
+                    nextRatings,
+                })
+              );
+            }
+          );
+        }
+      );
 
     return () => {
       unsubscribers.forEach(
@@ -369,80 +452,81 @@ export default function SalaPage() {
     isMember,
   ]);
 
-  const participantCount =
-    members.length;
+  /*
+   * =====================================================
+   * ESTATÍSTICAS
+   * =====================================================
+   */
 
-  const totalExpected =
-    space?.maxParticipants || 0;
+  const titleStats =
+    useMemo(() => {
+      const result: Record<
+        string,
+        {
+          votes: SpaceRating[];
+          average: number;
+          pending: SpaceMember[];
+          currentUserVoted: boolean;
+        }
+      > = {};
 
-  const titleStats = useMemo(() => {
-    const result: Record<
-      string,
-      {
-        votes: SpaceRating[];
-        average: number;
-        pending: SpaceMember[];
-        currentUserVoted: boolean;
-      }
-    > = {};
+      titles.forEach(
+        (title) => {
+          const key =
+            `${title.mediaType}_${title.mediaId}`;
 
-    titles.forEach(
-      (title) => {
-        const key =
-          `${title.mediaType}_${title.mediaId}`;
+          const titleRatings =
+            ratings[key] || [];
 
-        const titleRatings =
-          ratings[key] || [];
+          const average =
+            titleRatings.length
+              ? titleRatings.reduce(
+                  (
+                    sum,
+                    item
+                  ) =>
+                    sum +
+                    item.rating,
+                  0
+                ) /
+                titleRatings.length
+              : 0;
 
-        const average =
-          titleRatings.length
-            ? titleRatings.reduce(
-                (
-                  sum,
-                  item
-                ) =>
-                  sum +
-                  item.rating,
-                0
-              ) /
-              titleRatings.length
-            : 0;
+          const pending =
+            members.filter(
+              (member) =>
+                !titleRatings.some(
+                  (rating) =>
+                    rating.uid ===
+                    member.uid
+                )
+            );
 
-        const pending =
-          members.filter(
-            (member) =>
-              !titleRatings.some(
+          result[key] = {
+            votes:
+              titleRatings,
+            average,
+            pending,
+            currentUserVoted:
+              !!currentUid &&
+              titleRatings.some(
                 (rating) =>
                   rating.uid ===
-                  member.uid
-              )
-          );
+                  currentUid
+              ),
+          };
+        }
+      );
 
-        result[key] = {
-          votes:
-            titleRatings,
-          average,
-          pending,
-          currentUserVoted:
-            !!currentUid &&
-            titleRatings.some(
-              (rating) =>
-                rating.uid ===
-                currentUid
-            ),
-        };
-      }
-    );
+      return result;
+    }, [
+      titles,
+      ratings,
+      members,
+      currentUid,
+    ]);
 
-    return result;
-  }, [
-    titles,
-    ratings,
-    members,
-    currentUid,
-  ]);
-
-  const myPendingTitles =
+  const pendingTitles =
     titles.filter(
       (title) => {
         const key =
@@ -453,23 +537,11 @@ export default function SalaPage() {
       }
     );
 
-  const allTitlesComplete =
-    titles.length > 0 &&
-    titles.every(
-      (title) => {
-        const key =
-          `${title.mediaType}_${title.mediaId}`;
-
-        const stats =
-          titleStats[key];
-
-        return (
-          stats &&
-          stats.votes.length >=
-            participantCount
-        );
-      }
-    );
+  /*
+   * =====================================================
+   * CÓDIGO / COMPARTILHAR
+   * =====================================================
+   */
 
   const inviteUrl =
     typeof window !==
@@ -479,25 +551,26 @@ export default function SalaPage() {
         )}`
       : "";
 
-  function copyCode() {
+  async function copyCode() {
     if (!space) return;
 
-    navigator.clipboard
-      ?.writeText(space.code)
-      .then(() => {
-        setCopied(true);
+    try {
+      await navigator.clipboard.writeText(
+        space.code
+      );
 
-        window.setTimeout(
-          () =>
-            setCopied(false),
-          2000
-        );
-      })
-      .catch(() => {
-        setError(
-          `Código da sala: ${space.code}`
-        );
-      });
+      setCopied(true);
+
+      window.setTimeout(
+        () =>
+          setCopied(false),
+        2000
+      );
+    } catch {
+      setError(
+        `Código da sala: ${space.code}`
+      );
+    }
   }
 
   async function shareInvite() {
@@ -505,7 +578,6 @@ export default function SalaPage() {
 
     try {
       setSharing(true);
-      setError("");
 
       if (
         navigator.share
@@ -514,7 +586,7 @@ export default function SalaPage() {
           title:
             "Convite para o Dito & Feito",
           text:
-            `Entre na sala "${space.name}" do Dito & Feito.`,
+            `Entre na sala "${space.name}" do Dito & Feito usando o código ${space.code}.`,
           url: inviteUrl,
         });
       } else {
@@ -532,25 +604,16 @@ export default function SalaPage() {
       }
     } catch (err) {
       console.error(err);
-
-      if (
-        typeof err ===
-          "object" &&
-        err !== null &&
-        "name" in err &&
-        (
-          err as {
-            name?: string;
-          }
-        ).name ===
-          "AbortError"
-      ) {
-        return;
-      }
     } finally {
       setSharing(false);
     }
   }
+
+  /*
+   * =====================================================
+   * HOST ACEITA
+   * =====================================================
+   */
 
   async function handleAccept(
     request: SpaceJoinRequest
@@ -561,12 +624,34 @@ export default function SalaPage() {
       setProcessingRequest(
         request.uid
       );
+
       setError("");
 
       await acceptJoinRequest({
         space,
         request,
       });
+
+      /*
+       * Assim que aceitar:
+       * o host também vai para o catálogo.
+       *
+       * O convidado vai automaticamente através
+       * do listener de members acima.
+       */
+      sessionStorage.setItem(
+        "ditoefeito_space",
+        JSON.stringify(space)
+      );
+
+      sessionStorage.setItem(
+        "ditoefeito_active_space",
+        JSON.stringify(space)
+      );
+
+      router.replace(
+        "/filmes"
+      );
     } catch (err) {
       console.error(err);
 
@@ -576,9 +661,17 @@ export default function SalaPage() {
           : "Não foi possível aceitar o participante."
       );
     } finally {
-      setProcessingRequest("");
+      setProcessingRequest(
+        ""
+      );
     }
   }
+
+  /*
+   * =====================================================
+   * HOST RECUSA
+   * =====================================================
+   */
 
   async function handleReject(
     request: SpaceJoinRequest
@@ -587,6 +680,7 @@ export default function SalaPage() {
       setProcessingRequest(
         request.uid
       );
+
       setError("");
 
       await rejectJoinRequest(
@@ -599,55 +693,20 @@ export default function SalaPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Não foi possível recusar o participante."
+          : "Não foi possível excluir este pedido."
       );
     } finally {
-      setProcessingRequest("");
+      setProcessingRequest(
+        ""
+      );
     }
   }
 
-  function openCatalog() {
-    if (!isMember) return;
-
-    if (
-      space &&
-      !isHost
-    ) {
-      return;
-    }
-
-    router.push("/filmes");
-  }
-
-  function openSessionWindow() {
-    if (
-      typeof window ===
-      "undefined"
-    ) {
-      return;
-    }
-
-    window.open(
-      window.location.origin +
-        "/sala/" +
-        spaceId,
-      "ditoefeito-sessao",
-      "popup=yes,width=520,height=820"
-    );
-  }
-
-  function openTitle(
-    title: SpaceTitle
-  ) {
-    const key =
-      `${title.mediaType}_${title.mediaId}`;
-
-    router.push(
-      `/filmes?sessionTitle=${encodeURIComponent(
-        key
-      )}`
-    );
-  }
+  /*
+   * =====================================================
+   * CARREGANDO
+   * =====================================================
+   */
 
   if (loading) {
     return (
@@ -664,6 +723,12 @@ export default function SalaPage() {
       </main>
     );
   }
+
+  /*
+   * =====================================================
+   * SALA NÃO ENCONTRADA
+   * =====================================================
+   */
 
   if (!space) {
     return (
@@ -697,9 +762,9 @@ export default function SalaPage() {
   }
 
   /*
-   * ======================================================
-   * CONVIDADO AGUARDANDO ACEITE
-   * ======================================================
+   * =====================================================
+   * CONVIDADO ESPERANDO
+   * =====================================================
    */
 
   if (
@@ -719,13 +784,9 @@ export default function SalaPage() {
               onClick={() =>
                 router.push("/")
               }
-              className="flex items-center gap-3"
+              className="font-pixel text-sm text-pink-300"
             >
-              <img
-                src="/logo.png"
-                alt="Dito & Feito"
-                className="h-10 w-auto max-w-[180px] object-contain"
-              />
+              DITO & FEITO
             </button>
 
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-xl">
@@ -735,23 +796,37 @@ export default function SalaPage() {
           </header>
 
           <section className="mt-12 rounded-3xl border border-pink-400/20 bg-black/30 p-8 text-center shadow-2xl backdrop-blur">
+
             <div className="text-6xl">
               {roomFull
                 ? "🚫"
                 : myJoinRequest
-                ? "💞"
-                : "🎟️"}
+                  ? "⏳"
+                  : "🎬"}
             </div>
 
             <div className="mt-6 font-pixel text-[10px] text-pink-400">
-              CASALZINHO
+              {space.mode ===
+              "group"
+                ? "GRUPINHO"
+                : "CASALZINHO"}
             </div>
 
             <h1 className="mt-3 font-pixel text-lg text-white sm:text-2xl">
               {space.name}
             </h1>
 
-            <div className="mx-auto mt-5 max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-5">
+              <div className="font-pixel text-[9px] text-cyan-300">
+                CÓDIGO DA SALA
+              </div>
+
+              <div className="mt-2 font-pixel text-2xl tracking-[0.3em] text-white">
+                {space.code}
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <div className="font-pixel text-[9px] text-slate-500">
                 PARTICIPANTES
               </div>
@@ -769,18 +844,28 @@ export default function SalaPage() {
                 </h2>
 
                 <p className="mx-auto mt-4 max-w-md font-retro text-xl text-slate-400">
-                  Esta sala de casal já possui os dois participantes.
+                  Não há mais vagas
+                  nesta sala.
                 </p>
               </>
-            ) : myJoinRequest ||
-              requesting ? (
+            ) : (
               <>
                 <h2 className="mt-8 font-pixel text-sm text-cyan-300">
                   AGUARDANDO O ANFITRIÃO
                 </h2>
 
-                <p className="mx-auto mt-4 max-w-md font-retro text-xl text-slate-400">
-                  Seu pedido foi enviado. Assim que o anfitrião aceitar, você entrará automaticamente na sala.
+                <p className="mx-auto mt-4 max-w-md font-retro text-xl leading-relaxed text-slate-400">
+                  Seu perfil já chegou
+                  ao lobby.
+                  <br />
+                  Quando o anfitrião
+                  clicar em{" "}
+                  <strong className="text-white">
+                    ACEITAR
+                  </strong>
+                  , os dois irão
+                  automaticamente para o
+                  catálogo.
                 </p>
 
                 <div className="mt-7 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-5">
@@ -803,21 +888,11 @@ export default function SalaPage() {
                   </div>
                 </div>
               </>
-            ) : (
-              <>
-                <h2 className="mt-8 font-pixel text-sm text-white">
-                  ENTRANDO NA SALA...
-                </h2>
-
-                <p className="mx-auto mt-4 max-w-md font-retro text-xl text-slate-400">
-                  Estamos verificando se ainda existe uma vaga.
-                </p>
-              </>
             )}
 
-            {requestError && (
+            {error && (
               <div className="mt-6 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                {requestError}
+                {error}
               </div>
             )}
 
@@ -828,7 +903,9 @@ export default function SalaPage() {
               }
               className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-5 py-4 font-pixel text-[9px] text-slate-400 transition hover:border-white/20 hover:text-white"
             >
-              <ArrowLeft size={15} />
+              <ArrowLeft
+                size={15}
+              />
               SAIR
             </button>
           </section>
@@ -838,198 +915,233 @@ export default function SalaPage() {
   }
 
   /*
-   * ======================================================
-   * SALA DO HOST / PARTICIPANTES
-   * ======================================================
+   * =====================================================
+   * HOST NO LOBBY
+   * =====================================================
+   *
+   * IMPORTANTE:
+   * O host fica aqui enquanto ninguém foi aceito.
+   * Assim ele consegue ver os perfis que chegaram.
    */
 
   return (
     <main className="retro-grid min-h-screen px-5 pb-16">
-      <div className="mx-auto w-full max-w-6xl">
+      <div className="mx-auto w-full max-w-5xl">
+
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 py-6">
           <button
             type="button"
             onClick={() =>
               router.push("/")
             }
-            className="flex items-center gap-3"
+            className="font-pixel text-sm text-pink-300"
           >
-            <img
-              src="/logo.png"
-              alt="Dito & Feito"
-              className="h-10 w-auto max-w-[180px] object-contain"
-            />
+            DITO & FEITO
           </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              router.push(
-                "/perfil"
-              )
-            }
-            className="flex items-center gap-3"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">
               {profile?.avatar ||
                 "👤"}
             </div>
 
-            <div className="hidden text-left sm:block">
+            <div className="text-right">
               <div className="font-pixel text-[9px] text-white">
                 {profile?.username ||
-                  "PARTICIPANTE"}
+                  "ANFITRIÃO"}
               </div>
 
-              <div className="font-retro text-base text-slate-500">
-                {isHost
-                  ? "ANFITRIÃO"
-                  : "PARTICIPANTE"}
+              <div className="font-pixel text-[7px] text-pink-300">
+                ANFITRIÃO
               </div>
             </div>
-          </button>
+          </div>
         </header>
 
         <section className="mt-8 rounded-3xl border border-pink-400/20 bg-black/30 p-6 shadow-2xl backdrop-blur md:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="font-pixel text-[9px] text-pink-400">
-                💞 CASALZINHO
-              </div>
 
-              <h1 className="mt-3 font-pixel text-xl text-white sm:text-3xl">
-                {space.name}
-              </h1>
-
-              <p className="mt-3 font-retro text-xl text-slate-400">
-                {participantCount ===
-                2
-                  ? "VOCÊS DOIS ESTÃO CONECTADOS."
-                  : "AGUARDANDO SEU PAR."}
-              </p>
-
-              <div className="mt-5 inline-flex items-center gap-3 rounded-2xl border border-pink-400/20 bg-pink-500/5 px-5 py-3">
-                <span className="font-pixel text-[9px] text-slate-500">
-                  SALA
-                </span>
-
-                <span className="font-pixel text-sm text-white">
-                  {participantCount}/2
-                </span>
-
-                <span className="text-xs text-slate-500">
-                  PARTICIPANTES
-                </span>
-              </div>
+          <div className="text-center">
+            <div className="font-pixel text-[9px] text-pink-400">
+              {space.mode ===
+              "group"
+                ? "👾 GRUPINHO"
+                : "💞 CASALZINHO"}
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <h1 className="mt-3 font-pixel text-xl text-white sm:text-3xl">
+              {space.name}
+            </h1>
+
+            <p className="mt-3 font-retro text-xl text-slate-400">
+              Convide as pessoas e
+              aceite quem deve participar.
+            </p>
+          </div>
+
+          {/* CÓDIGO */}
+
+          <div className="mx-auto mt-8 max-w-md rounded-3xl border border-cyan-400/30 bg-cyan-400/5 p-6 text-center">
+            <div className="font-pixel text-[9px] text-cyan-300">
+              CÓDIGO DA SALA
+            </div>
+
+            <div className="mt-3 font-pixel text-3xl tracking-[0.35em] text-white">
+              {space.code}
+            </div>
+
+            <div className="mt-5 flex gap-2">
               <button
                 type="button"
-                onClick={copyCode}
-                className="flex items-center gap-2 rounded-xl border border-cyan-400/30 px-4 py-3 text-sm text-cyan-300 transition hover:border-cyan-300 hover:text-white"
+                onClick={
+                  copyCode
+                }
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-3 font-pixel text-[8px] text-white transition hover:border-cyan-400"
               >
                 {copied ? (
-                  <Check size={16} />
+                  <>
+                    <Check
+                      size={15}
+                    />
+                    COPIADO
+                  </>
                 ) : (
-                  <Copy size={16} />
+                  <>
+                    <Copy
+                      size={15}
+                    />
+                    COPIAR CÓDIGO
+                  </>
                 )}
-
-                {copied
-                  ? "COPIADO"
-                  : space.code}
               </button>
 
               <button
                 type="button"
                 onClick={
-                  openSessionWindow
+                  shareInvite
                 }
-                className="flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-300 transition hover:border-cyan-300 hover:text-white"
+                disabled={
+                  sharing
+                }
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 font-pixel text-[8px] text-pink-300 transition hover:border-pink-300 hover:text-white"
               >
-                <ExternalLink size={16} />
-                ABRIR SESSÃO
+                <Share2
+                  size={15}
+                />
+                CONVIDAR
               </button>
+            </div>
+          </div>
 
-              {isHost && (
-                <button
-                  type="button"
-                  onClick={
-                    shareInvite
-                  }
-                  disabled={sharing}
-                  className="flex items-center gap-2 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 text-sm text-pink-300 transition hover:border-pink-300 hover:text-white disabled:opacity-50"
-                >
-                  <Share2
-                    size={16}
-                  />
+          {/* PARTICIPANTES ATUAIS */}
 
-                  {sharing
-                    ? "ABRINDO..."
-                    : "CONVIDAR"}
-                </button>
+          <div className="mt-10">
+            <div className="flex items-end justify-between">
+              <div>
+                <div className="font-pixel text-[9px] text-cyan-300">
+                  PARTICIPANTES
+                </div>
+
+                <h2 className="mt-2 font-pixel text-sm text-white">
+                  QUEM ESTÁ NA SALA
+                </h2>
+              </div>
+
+              <div className="font-pixel text-[10px] text-slate-500">
+                {members.length}/
+                {space.maxParticipants}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {members.map(
+                (member) => (
+                  <div
+                    key={
+                      member.uid
+                    }
+                    className="rounded-2xl border border-pink-400/20 bg-pink-500/[0.04] p-5"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/5 text-3xl">
+                        {
+                          member.avatar
+                        }
+                      </div>
+
+                      <div>
+                        <div className="font-retro text-2xl text-white">
+                          {
+                            member.username
+                          }
+                        </div>
+
+                        <div className="mt-1 font-pixel text-[8px] text-pink-300">
+                          ANFITRIÃO
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
+
+              {members.length ===
+                1 && (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-5">
+                  <div className="flex h-full min-h-[88px] items-center justify-center text-center">
+                    <div>
+                      <div className="text-2xl">
+                        ⏳
+                      </div>
+
+                      <div className="mt-2 font-pixel text-[8px] text-slate-500">
+                        AGUARDANDO
+                        CONVIDADO
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            <StatusCard
-              label="PARTICIPANTES"
-              value={`${participantCount}/2`}
-              detail={
-                participantCount ===
-                2
-                  ? "sala completa"
-                  : "aguardando seu par"
-              }
-            />
+          {/* PEDIDOS */}
 
-            <StatusCard
-              label="TÍTULOS"
-              value={`${titles.length}`}
-              detail="na sessão"
-            />
+          <div className="mt-10">
+            <div className="font-pixel text-[9px] text-cyan-300">
+              ENTRADAS
+            </div>
 
-            <StatusCard
-              label="PENDÊNCIAS"
-              value={`${myPendingTitles.length}`}
-              detail="para você"
-            />
-          </div>
-        </section>
+            <h2 className="mt-2 font-pixel text-sm text-white">
+              QUEM QUER ENTRAR?
+            </h2>
 
-        {isHost &&
-          joinRequests.length >
-            0 && (
-            <section className="mt-8 rounded-3xl border border-cyan-400/30 bg-cyan-400/[0.04] p-6 shadow-xl md:p-8">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="font-pixel text-[9px] text-cyan-300">
-                    NOVO PEDIDO
-                  </div>
-
-                  <h2 className="mt-2 font-pixel text-sm text-white">
-                    ALGUÉM QUER ENTRAR
-                  </h2>
-
-                  <p className="mt-2 font-retro text-lg text-slate-500">
-                    Aceite seu par para começar a sessão.
-                  </p>
+            {joinRequests.length ===
+            0 ? (
+              <div className="mt-5 rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
+                <div className="text-4xl">
+                  🎟️
                 </div>
 
-                <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 font-pixel text-[9px] text-cyan-300">
-                  {participantCount}/2
-                </div>
+                <p className="mt-4 font-retro text-lg text-slate-500">
+                  Ainda ninguém
+                  entrou com o código.
+                </p>
+
+                <p className="mt-2 text-sm text-slate-600">
+                  Envie o código acima
+                  para a pessoa que você
+                  quer convidar.
+                </p>
               </div>
-
-              <div className="mt-6 space-y-3">
+            ) : (
+              <div className="mt-5 space-y-3">
                 {joinRequests.map(
                   (request) => (
                     <div
                       key={
                         request.uid
                       }
-                      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-4 rounded-2xl border border-cyan-400/30 bg-cyan-400/[0.04] p-5 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex items-center gap-4">
                         <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/5 text-3xl">
@@ -1045,7 +1157,7 @@ export default function SalaPage() {
                             }
                           </div>
 
-                          <div className="mt-1 text-xs text-cyan-300">
+                          <div className="mt-1 font-pixel text-[8px] text-cyan-300">
                             QUER ENTRAR NA SALA
                           </div>
                         </div>
@@ -1063,12 +1175,12 @@ export default function SalaPage() {
                               request
                             )
                           }
-                          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-xs text-red-300 transition hover:border-red-300 hover:text-white disabled:opacity-50 sm:flex-none"
+                          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 font-pixel text-[8px] text-red-300 transition hover:border-red-300 hover:text-white disabled:opacity-50 sm:flex-none"
                         >
                           <UserX
                             size={15}
                           />
-                          RECUSAR
+                          EXCLUIR
                         </button>
 
                         <button
@@ -1094,398 +1206,49 @@ export default function SalaPage() {
                   )
                 )}
               </div>
-            </section>
-          )}
-
-        <section className="mt-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="font-pixel text-[9px] text-cyan-300">
-                PARTICIPANTES
-              </p>
-
-              <h2 className="mt-2 font-pixel text-sm text-white">
-                VOCÊS NA SESSÃO
-              </h2>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                window.location.reload()
-              }
-              className="flex items-center gap-2 self-start rounded-xl border border-white/10 px-4 py-3 text-sm text-slate-400 transition hover:border-white/20 hover:text-white"
-            >
-              <RefreshCw
-                size={15}
-              />
-              ATUALIZAR
-            </button>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {members.map(
-              (member) => (
-                <div
-                  key={
-                    member.uid
-                  }
-                  className={`rounded-2xl border p-5 ${
-                    member.role ===
-                    "host"
-                      ? "border-pink-400/20 bg-pink-500/[0.04]"
-                      : "border-cyan-400/20 bg-cyan-400/[0.03]"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/5 text-3xl">
-                      {
-                        member.avatar
-                      }
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="truncate font-retro text-2xl text-white">
-                        {
-                          member.username
-                        }
-                      </div>
-
-                      <div
-                        className={`mt-1 font-pixel text-[8px] ${
-                          member.role ===
-                          "host"
-                            ? "text-pink-300"
-                            : "text-cyan-300"
-                        }`}
-                      >
-                        {member.role ===
-                        "host"
-                          ? "ANFITRIÃO"
-                          : "SEU PAR"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
             )}
           </div>
-        </section>
 
-        <section className="mt-10">
-          <div>
-            <p className="font-pixel text-[9px] text-pink-400">
-              FILMES E SÉRIES DA SESSÃO
-            </p>
+          {/* INFORMAÇÃO */}
 
-            <h2 className="mt-2 font-pixel text-sm text-white">
-              TÍTULOS PARA VOCÊS AVALIAREM
-            </h2>
+          <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center">
+            <div className="font-pixel text-[9px] text-slate-500">
+              COMO FUNCIONA
+            </div>
 
-            <p className="mt-3 font-retro text-xl text-slate-500">
-              Cada título precisa receber uma nota de cada participante.
+            <p className="mt-3 font-retro text-lg leading-relaxed text-slate-400">
+              Quando você clicar em{" "}
+              <strong className="text-white">
+                ACEITAR
+              </strong>
+              , seu convidado será
+              liberado automaticamente.
+              <br />
+              Vocês dois serão levados ao
+              catálogo ao mesmo tempo.
             </p>
           </div>
 
-          {!titles.length ? (
-            <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.02] p-10 text-center">
-              <div className="text-5xl">
-                🎬
-              </div>
-
-              <h3 className="mt-5 font-pixel text-xs text-white">
-                NENHUM TÍTULO AINDA
-              </h3>
-
-              <p className="mx-auto mt-3 max-w-lg font-retro text-xl text-slate-500">
-                {isHost
-                  ? "Como anfitrião, vá ao catálogo e escolha os filmes ou séries da sessão."
-                  : "O anfitrião ainda não escolheu nenhum filme ou série."}
-              </p>
-
-              {isHost && (
-                <button
-                  type="button"
-                  onClick={
-                    openCatalog
-                  }
-                  className="mt-6 rounded-xl bg-pink-500 px-6 py-4 font-pixel text-[9px] text-white transition hover:bg-pink-400"
-                >
-                  IR PARA O CATÁLOGO →
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-4">
-              {titles.map(
-                (title) => {
-                  const key =
-                    `${title.mediaType}_${title.mediaId}`;
-
-                  const stats =
-                    titleStats[
-                      key
-                    ];
-
-                  const titleRatings =
-                    stats?.votes ||
-                    [];
-
-                  const voteCount =
-                    titleRatings.length;
-
-                  const average =
-                    stats?.average ||
-                    0;
-
-                  return (
-                    <div
-                      key={key}
-                      className={`rounded-3xl border p-4 transition sm:p-5 ${
-                        stats?.currentUserVoted
-                          ? "border-white/10 bg-white/[0.025]"
-                          : "border-pink-400/30 bg-pink-500/[0.04]"
-                      }`}
-                    >
-                      <div className="flex flex-col gap-5 md:flex-row">
-                        <div className="h-36 w-24 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#101522]">
-                          {title.posterPath ? (
-                            <img
-                              src={`${TMDB_IMAGE_BASE}${title.posterPath}`}
-                              alt={
-                                title.title
-                              }
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-center text-xs text-slate-600">
-                              SEM CAPA
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="flex items-center gap-1 rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">
-                              {title.mediaType ===
-                              "movie" ? (
-                                <Film
-                                  size={
-                                    12
-                                  }
-                                />
-                              ) : (
-                                <Tv
-                                  size={
-                                    12
-                                  }
-                                />
-                              )}
-
-                              {title.mediaType ===
-                              "movie"
-                                ? "FILME"
-                                : "SÉRIE"}
-                            </span>
-
-                            {title.year && (
-                              <span className="text-xs text-slate-500">
-                                {
-                                  title.year
-                                }
-                              </span>
-                            )}
-                          </div>
-
-                          <h3 className="mt-3 font-retro text-2xl text-white">
-                            {
-                              title.title
-                            }
-                          </h3>
-
-                          <div className="mt-4 flex flex-wrap items-center gap-4">
-                            <div>
-                              <div className="font-pixel text-[8px] text-slate-500">
-                                MÉDIA ATUAL
-                              </div>
-
-                              <div className="mt-1 flex items-center gap-2 font-retro text-xl text-yellow-300">
-                                <Star
-                                  size={
-                                    16
-                                  }
-                                  fill="currentColor"
-                                />
-
-                                {voteCount
-                                  ? average.toFixed(
-                                      2
-                                    )
-                                  : "--"}
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="font-pixel text-[8px] text-slate-500">
-                                VOTOS
-                              </div>
-
-                              <div className="mt-1 font-retro text-xl text-white">
-                                {voteCount}/
-                                {totalExpected}
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="font-pixel text-[8px] text-slate-500">
-                                SITUAÇÃO
-                              </div>
-
-                              <div
-                                className={`mt-1 font-pixel text-[9px] ${
-                                  stats?.currentUserVoted
-                                    ? "text-green-300"
-                                    : "text-pink-300"
-                                }`}
-                              >
-                                {stats?.currentUserVoted
-                                  ? "SUA NOTA ✓"
-                                  : "FALTA SUA NOTA"}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-5 flex flex-wrap gap-2">
-                            {members.map(
-                              (
-                                member
-                              ) => {
-                                const memberRating =
-                                  titleRatings.find(
-                                    (
-                                      rating
-                                    ) =>
-                                      rating.uid ===
-                                      member.uid
-                                  );
-
-                                return (
-                                  <div
-                                    key={
-                                      member.uid
-                                    }
-                                    className="rounded-xl border border-white/10 bg-black/20 px-3 py-2"
-                                  >
-                                    <div className="text-xs text-slate-500">
-                                      {
-                                        member.username
-                                      }
-                                    </div>
-
-                                    <div
-                                      className={`mt-1 text-sm ${
-                                        memberRating
-                                          ? "text-yellow-300"
-                                          : "text-slate-600"
-                                      }`}
-                                    >
-                                      {memberRating
-                                        ? memberRating.rating.toFixed(
-                                            1
-                                          )
-                                        : "—"}
-                                    </div>
-                                  </div>
-                                );
-                              }
-                            )}
-                          </div>
-
-                          <div className="mt-5">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openTitle(
-                                  title
-                                )
-                              }
-                              className={`flex items-center gap-2 rounded-xl px-5 py-3 font-pixel text-[9px] transition ${
-                                stats?.currentUserVoted
-                                  ? "border border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
-                                  : "bg-pink-500 text-white hover:bg-pink-400"
-                              }`}
-                            >
-                              {stats?.currentUserVoted
-                                ? "VER NO CATÁLOGO"
-                                : "DAR MINHA NOTA →"}
-
-                              <ExternalLink
-                                size={
-                                  14
-                                }
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-              )}
+          {error && (
+            <div className="mt-6 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+              {error}
             </div>
           )}
-        </section>
 
-        {error && (
-          <div className="mt-8 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
-            {error}
-          </div>
-        )}
-
-        <div className="mt-10 flex justify-center">
           <button
             type="button"
             onClick={() =>
               router.push("/")
             }
-            className="flex items-center gap-2 font-retro text-lg text-slate-500 transition hover:text-white"
+            className="mx-auto mt-8 flex items-center gap-2 font-retro text-lg text-slate-500 transition hover:text-white"
           >
             <ArrowLeft
               size={17}
             />
             Sair para o início
           </button>
-        </div>
+        </section>
       </div>
     </main>
   );
 }
-
-function StatusCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="font-pixel text-[8px] text-slate-500">
-        {label}
-      </div>
-
-      <div className="mt-2 font-pixel text-sm text-white">
-        {value}
-      </div>
-
-      <div className="mt-1 text-xs text-slate-600">
-        {detail}
-      </div>
-    </div>
-  );
-}
-
-const TMDB_IMAGE_BASE =
-  "https://image.tmdb.org/t/p/w500";
