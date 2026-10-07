@@ -601,14 +601,15 @@ function openTitle(title: SpaceTitle) {
                 <ExternalLink size={16} />
                 ABRIR SESSÃO
               </button>
+              
+              <button
+                type="button"
+                onClick={shareInvite}
                 disabled={sharing}
                 className="flex items-center gap-2 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 text-sm text-pink-300 transition hover:border-pink-300 hover:text-white disabled:opacity-50"
               >
                 <Share2 size={16} />
-
-                {sharing
-                  ? "ABRINDO..."
-                  : "CONVIDAR"}
+                {sharing ? "ABRINDO..." : "CONVIDAR"}
               </button>
 
             </div>
