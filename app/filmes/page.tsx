@@ -12,11 +12,11 @@ import {
 
 import {
   addTitleToSpace,
+  saveSpaceRating,
   subscribeToMembers,
   subscribeToSpace,
   subscribeToSpaceRatings,
   subscribeToSpaceTitles,
-  saveSpaceRating,
   type Space,
   type SpaceMember,
   type SpaceRating,
@@ -32,7 +32,6 @@ import {
 import {
   getSavedRating,
   saveRating,
-  type SavedRating,
 } from "@/lib/ratings";
 
 type MediaType = "movie" | "tv";
@@ -51,8 +50,23 @@ type MediaItem = {
   popularity: number;
 };
 
-const TMDB_IMAGE_BASE = 
-  "https://image.tmdb.org/t/p/w500";
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+
+function titleToMediaItem(title: SpaceTitle): MediaItem {
+  return {
+    id: title.mediaId,
+    type: title.mediaType,
+    title: title.title,
+    originalTitle: title.originalTitle,
+    overview: title.overview,
+    posterPath: title.posterPath,
+    backdropPath: null,
+    year: title.year,
+    rating: title.tmdbRating,
+    voteCount: title.tmdbVoteCount,
+    popularity: 0,
+  };
+}
 
 export default function FilmesPage() {
   const router = useRouter();
@@ -79,6 +93,9 @@ export default function FilmesPage() {
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
   const [ratingOpen, setRatingOpen] = useState(false);
 
+  const [sessionOpen, setSessionOpen] = useState(false);
+  const [addingTitleKey, setAddingTitleKey] = useState<string | null>(null);
+
   useEffect(() => {
     const unsubscribe = subscribeToAuth(async (user) => {
       if (!user) {
@@ -103,7 +120,9 @@ export default function FilmesPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const storedSpace = sessionStorage.getItem("ditoefeito_active_space");
+    const storedSpace = sessionStorage.getItem(
+      "ditoefeito_active_space"
+    );
 
     if (!storedSpace) return;
 
@@ -126,6 +145,8 @@ export default function FilmesPage() {
     const unsubscribeSpace = subscribeToSpace(
       activeSpace.id,
       (space) => {
+        if (!space) return;
+
         setActiveSpace(space);
 
         if (typeof window !== "undefined") {
@@ -243,18 +264,6 @@ export default function FilmesPage() {
     return () => window.clearTimeout(timeout);
   }, [searchTerm, searchType]);
 
-  /*
-   * Abre automaticamente títulos vindos de:
-   *
-   * /filmes?edit=movie_123
-   *
-   * ou
-   *
-   * /filmes?sessionTitle=movie_123
-   *
-   * Isso permite editar títulos pela Biblioteca e
-   * abrir títulos diretamente pela Sala.
-   */
   useEffect(() => {
     if (!authUid) return;
 
@@ -307,7 +316,6 @@ export default function FilmesPage() {
           });
 
           setRatingOpen(true);
-
           return;
         }
 
@@ -320,20 +328,7 @@ export default function FilmesPage() {
 
           if (!title || cancelled) return;
 
-          setSelectedItem({
-            id: title.mediaId,
-            type: title.mediaType,
-            title: title.title,
-            originalTitle: title.originalTitle,
-            overview: title.overview,
-            posterPath: title.posterPath,
-            backdropPath: null,
-            year: title.year,
-            rating: title.tmdbRating,
-            voteCount: title.tmdbVoteCount,
-            popularity: 0,
-          });
-
+          setSelectedItem(titleToMediaItem(title));
           setRatingOpen(true);
         }
       } catch (error) {
@@ -366,6 +361,11 @@ export default function FilmesPage() {
     setRatingOpen(true);
   }
 
+  function openDetails(item: MediaItem) {
+    setSelectedItem(item);
+    setRatingOpen(false);
+  }
+
   function closeModal() {
     setSelectedItem(null);
     setRatingOpen(false);
@@ -383,6 +383,66 @@ export default function FilmesPage() {
       });
     }
   }
+
+  async function addToSession(item: MediaItem) {
+    if (!activeSpace || !authUid) return;
+
+    const key = `${item.type}_${item.id}`;
+
+    if (
+      addingTitleKey === key ||
+      spaceTitles.some(
+        (title) =>
+          title.mediaType === item.type &&
+          title.mediaId === item.id
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setAddingTitleKey(key);
+
+      await addTitleToSpace(activeSpace.id, {
+        mediaId: item.id,
+        mediaType: item.type,
+        title: item.title,
+        originalTitle: item.originalTitle,
+        overview: item.overview,
+        posterPath: item.posterPath,
+        year: item.year,
+        tmdbRating: item.rating,
+        tmdbVoteCount: item.voteCount,
+        addedBy: authUid,
+      });
+
+      setSelectedItem(null);
+      setRatingOpen(false);
+      setSessionOpen(true);
+    } catch (error) {
+      console.error(
+        "Erro ao adicionar título à sessão:",
+        error
+      );
+    } finally {
+      setAddingTitleKey(null);
+    }
+  }
+
+  const isSharedMode =
+    !!activeSpace &&
+    profile?.mode !== "solo";
+
+  const pendingCount = isSharedMode
+    ? spaceTitles.filter((title) => {
+        const key = `${title.mediaType}_${title.mediaId}`;
+        const titleRatings = spaceRatings[key] || [];
+
+        return !titleRatings.some(
+          (rating) => rating.uid === authUid
+        );
+      }).length
+    : 0;
 
   return (
     <main className="min-h-screen bg-[#070910] text-white">
@@ -479,17 +539,47 @@ export default function FilmesPage() {
           </p>
         </div>
 
-        {activeSpace &&
-          profile?.mode !== "solo" &&
-          spaceTitles.length > 0 && (
-            <SharedSessionPanel
-              titles={spaceTitles}
-              ratings={spaceRatings}
-              members={spaceMembers}
-              currentUid={authUid || ""}
-              onOpen={openRating}
-            />
-          )}
+        {isSharedMode && (
+          <section className="mb-8">
+            <button
+              type="button"
+              onClick={() => setSessionOpen(true)}
+              className="w-full rounded-3xl border border-pink-400/30 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-cyan-400/10 p-5 text-left transition hover:border-pink-400/60"
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="font-pixel text-[9px] text-pink-300">
+                    SESSÃO ATIVA
+                  </div>
+
+                  <div className="mt-2 font-pixel text-sm text-white md:text-base">
+                    {activeSpace?.name || "SALA"}{" "}
+                    · {spaceMembers.length}{" "}
+                    {spaceMembers.length === 1
+                      ? "PESSOA"
+                      : "PESSOAS"}{" "}
+                    · {spaceTitles.length}{" "}
+                    {spaceTitles.length === 1
+                      ? "TÍTULO"
+                      : "TÍTULOS"}
+                  </div>
+
+                  <div className="mt-2 font-retro text-sm text-slate-400">
+                    {pendingCount > 0
+                      ? `${pendingCount} título${
+                          pendingCount === 1 ? "" : "s"
+                        } aguardando sua nota`
+                      : "Você está em dia com a sessão"}
+                  </div>
+                </div>
+
+                <div className="shrink-0 rounded-2xl border border-pink-400/30 bg-pink-500/10 px-5 py-3 text-center font-pixel text-[9px] text-pink-200">
+                  ABRIR SESSÃO →
+                </div>
+              </div>
+            </button>
+          </section>
+        )}
 
         <section className="mb-10">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:p-5">
@@ -561,7 +651,7 @@ export default function FilmesPage() {
                       <MediaCard
                         key={`${item.type}_${item.id}`}
                         item={item}
-                        onClick={() => setSelectedItem(item)}
+                        onClick={() => openDetails(item)}
                       />
                     ))}
                   </div>
@@ -577,14 +667,14 @@ export default function FilmesPage() {
               title="FILMES EM ALTA"
               items={popularMovies}
               loading={popularLoading}
-              onOpen={openRating}
+              onOpen={openDetails}
             />
 
             <CatalogSection
               title="SÉRIES EM ALTA"
               items={popularTv}
               loading={popularLoading}
-              onOpen={openRating}
+              onOpen={openDetails}
             />
           </>
         )}
@@ -595,6 +685,23 @@ export default function FilmesPage() {
           item={selectedItem}
           onClose={closeModal}
           onRate={() => setRatingOpen(true)}
+          onAddToSession={
+            isSharedMode
+              ? () => addToSession(selectedItem)
+              : undefined
+          }
+          alreadyInSession={
+            !!activeSpace &&
+            spaceTitles.some(
+              (title) =>
+                title.mediaType === selectedItem.type &&
+                title.mediaId === selectedItem.id
+            )
+          }
+          adding={
+            addingTitleKey ===
+            `${selectedItem.type}_${selectedItem.id}`
+          }
         />
       )}
 
@@ -605,6 +712,22 @@ export default function FilmesPage() {
           activeSpace={activeSpace}
           onClose={closeModal}
           onSaved={closeModal}
+        />
+      )}
+
+      {sessionOpen && activeSpace && (
+        <SharedSessionModal
+          space={activeSpace}
+          titles={spaceTitles}
+          ratings={spaceRatings}
+          members={spaceMembers}
+          currentUid={authUid || ""}
+          onClose={() => setSessionOpen(false)}
+          onOpenTitle={(title) => {
+            setSessionOpen(false);
+            setSelectedItem(titleToMediaItem(title));
+            setRatingOpen(true);
+          }}
         />
       )}
     </main>
@@ -624,16 +747,14 @@ function CatalogSection({
 }) {
   return (
     <section className="mb-12">
-      <div className="mb-5 flex items-end justify-between">
-        <div>
-          <p className="font-pixel text-[9px] text-cyan-300">
-            DESCUBRA
-          </p>
+      <div className="mb-5">
+        <p className="font-pixel text-[9px] text-cyan-300">
+          DESCUBRA
+        </p>
 
-          <h2 className="mt-1 font-pixel text-lg text-white md:text-xl">
-            {title}
-          </h2>
-        </div>
+        <h2 className="mt-1 font-pixel text-lg text-white md:text-xl">
+          {title}
+        </h2>
       </div>
 
       {loading ? (
@@ -709,10 +830,16 @@ function MediaModal({
   item,
   onClose,
   onRate,
+  onAddToSession,
+  alreadyInSession,
+  adding,
 }: {
   item: MediaItem;
   onClose: () => void;
   onRate: () => void;
+  onAddToSession?: () => void;
+  alreadyInSession: boolean;
+  adding: boolean;
 }) {
   return (
     <div
@@ -721,7 +848,9 @@ function MediaModal({
     >
       <div
         className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0d111b] shadow-2xl"
-        onMouseDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) =>
+          event.stopPropagation()
+        }
       >
         <div className="relative">
           {item.backdropPath || item.posterPath ? (
@@ -769,12 +898,27 @@ function MediaModal({
             </p>
           )}
 
+          {onAddToSession && (
+            <button
+              type="button"
+              onClick={onAddToSession}
+              disabled={alreadyInSession || adding}
+              className="mt-7 w-full rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-4 font-pixel text-[10px] text-cyan-200 transition hover:border-cyan-300 hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {adding
+                ? "ADICIONANDO..."
+                : alreadyInSession
+                ? "JÁ ESTÁ NA SESSÃO"
+                : "ADICIONAR À SESSÃO"}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onRate}
-            className="mt-7 w-full rounded-2xl bg-pink-500 px-5 py-4 font-pixel text-[10px] text-white transition hover:bg-pink-400"
+            className="mt-3 w-full rounded-2xl bg-pink-500 px-5 py-4 font-pixel text-[10px] text-white transition hover:bg-pink-400"
           >
-            AVALIAR ESTE TÍTULO
+            DAR MINHA NOTA
           </button>
         </div>
       </div>
@@ -876,19 +1020,6 @@ function RatingModal({
       });
 
       if (activeSpace) {
-        await addTitleToSpace(activeSpace.id, {
-          mediaId: item.id,
-          mediaType: item.type,
-          title: item.title,
-          originalTitle: item.originalTitle,
-          overview: item.overview,
-          posterPath: item.posterPath,
-          year: item.year,
-          tmdbRating: item.rating,
-          tmdbVoteCount: item.voteCount,
-          addedBy: uid,
-        });
-
         await saveSpaceRating(
           activeSpace.id,
           item.type,
@@ -903,7 +1034,10 @@ function RatingModal({
 
       onSaved();
     } catch (error) {
-      console.error("Erro ao salvar avaliação:", error);
+      console.error(
+        "Erro ao salvar avaliação:",
+        error
+      );
 
       setError(
         "Não foi possível salvar agora. Tente novamente."
@@ -922,7 +1056,9 @@ function RatingModal({
     >
       <div
         className="w-full max-w-xl rounded-3xl border border-white/10 bg-[#0d111b] p-6 shadow-2xl"
-        onMouseDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) =>
+          event.stopPropagation()
+        }
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -959,8 +1095,10 @@ function RatingModal({
                 {Array.from({ length: 10 }).map(
                   (_, index) => {
                     const star = index + 1;
+
                     const isFull =
                       displayedRating >= star;
+
                     const isHalf =
                       displayedRating >= star - 0.5 &&
                       displayedRating < star;
@@ -969,7 +1107,9 @@ function RatingModal({
                       <button
                         key={star}
                         type="button"
-                        onClick={() => selectRating(star)}
+                        onClick={() =>
+                          selectRating(star)
+                        }
                         onMouseEnter={() =>
                           setHoverRating(star)
                         }
@@ -1029,7 +1169,7 @@ function RatingModal({
 
             {activeSpace && (
               <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/5 p-4 font-retro text-sm text-cyan-200">
-                Esta nota também será registrada na sessão
+                Sua nota também será registrada na sessão
                 compartilhada.
               </div>
             )}
@@ -1055,144 +1195,220 @@ function RatingModal({
   );
 }
 
-function SharedSessionPanel({
+function SharedSessionModal({
+  space,
   titles,
   ratings,
   members,
   currentUid,
-  onOpen,
+  onClose,
+  onOpenTitle,
 }: {
+  space: Space;
   titles: SpaceTitle[];
   ratings: Record<string, SpaceRating[]>;
   members: SpaceMember[];
   currentUid: string;
-  onOpen: (item: MediaItem) => void;
+  onClose: () => void;
+  onOpenTitle: (title: SpaceTitle) => void;
 }) {
-  const pending = titles.filter((title) => {
-    const key = `${title.mediaType}_${title.mediaId}`;
-    const titleRatings = ratings[key] || [];
-
-    return !titleRatings.some(
-      (rating) => rating.uid === currentUid
-    );
-  });
-
-  if (pending.length === 0) {
-    return (
-      <section className="mb-10 rounded-3xl border border-emerald-400/20 bg-emerald-400/5 p-5">
-        <div className="font-pixel text-[10px] text-emerald-300">
-          SESSÃO EM DIA
-        </div>
-
-        <div className="mt-2 font-retro text-base text-slate-300">
-          Todo mundo já deu sua nota nos títulos escolhidos.
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="mb-10">
-      <div className="mb-5">
-        <p className="font-pixel text-[9px] text-pink-300">
-          SESSÃO COMPARTILHADA
-        </p>
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+      onMouseDown={onClose}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-pink-400/20 bg-[#0d111b] shadow-2xl"
+        onMouseDown={(event) =>
+          event.stopPropagation()
+        }
+      >
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/10 bg-[#0d111b]/95 p-6 backdrop-blur-xl">
+          <div>
+            <div className="font-pixel text-[9px] text-pink-300">
+              SESSÃO COMPARTILHADA
+            </div>
 
-        <h2 className="mt-1 font-pixel text-lg text-white">
-          FALTA SUA NOTA
-        </h2>
+            <h2 className="mt-2 font-pixel text-lg text-white md:text-xl">
+              {space.name}
+            </h2>
 
-        <p className="mt-2 font-retro text-sm text-slate-400">
-          Estes títulos estão esperando sua avaliação.
-        </p>
-      </div>
+            <div className="mt-2 font-retro text-sm text-slate-400">
+              {members.length}{" "}
+              {members.length === 1
+                ? "participante"
+                : "participantes"}{" "}
+              · {titles.length}{" "}
+              {titles.length === 1
+                ? "título"
+                : "títulos"}
+            </div>
+          </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {pending.map((title) => {
-          const key = `${title.mediaType}_${title.mediaId}`;
-          const titleRatings = ratings[key] || [];
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/10 p-2 text-slate-400 hover:text-white"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-          const voteCount = titleRatings.length;
-
-          const average = voteCount
-            ? titleRatings.reduce(
-                (sum, rating) => sum + rating.rating,
-                0
-              ) / voteCount
-            : 0;
-
-          const item: MediaItem = {
-            id: title.mediaId,
-            type: title.mediaType,
-            title: title.title,
-            originalTitle: title.originalTitle,
-            overview: title.overview,
-            posterPath: title.posterPath,
-            backdropPath: null,
-            year: title.year,
-            rating: title.tmdbRating,
-            voteCount: title.tmdbVoteCount,
-            popularity: 0,
-          };
-
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onOpen(item)}
-              className="flex gap-4 rounded-3xl border border-pink-400/20 bg-pink-400/5 p-4 text-left transition hover:border-pink-400/50 hover:bg-pink-400/10"
-            >
-              <div className="h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-black/30">
-                {title.posterPath ? (
-                  <img
-                    src={`${TMDB_IMAGE_BASE}${title.posterPath}`}
-                    alt={title.title}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center font-pixel text-[7px] text-slate-600">
-                    SEM IMAGEM
-                  </div>
-                )}
+        <div className="p-6">
+          {titles.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-white/10 p-10 text-center">
+              <div className="font-pixel text-[10px] text-cyan-300">
+                SESSÃO VAZIA
               </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="font-pixel text-[8px] text-pink-300">
-                  {title.mediaType === "movie"
-                    ? "FILME"
-                    : "SÉRIE"}
-                </div>
+              <p className="mt-3 font-retro text-base text-slate-400">
+                Escolha um filme ou série no catálogo e
+                adicione à sessão.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {titles.map((title) => {
+                const key = `${title.mediaType}_${title.mediaId}`;
+                const titleRatings = ratings[key] || [];
 
-                <div className="mt-2 line-clamp-2 font-retro text-base text-white">
-                  {title.title}
-                </div>
+                const voteCount = titleRatings.length;
 
-                <div className="mt-3 flex flex-wrap gap-3 font-retro text-sm text-slate-400">
-                  <span>
-                    Média:{" "}
-                    <strong className="text-yellow-300">
-                      {voteCount
-                        ? average.toFixed(2)
-                        : "--"}
-                    </strong>
-                  </span>
+                const average = voteCount
+                  ? titleRatings.reduce(
+                      (sum, item) =>
+                        sum + item.rating,
+                      0
+                    ) / voteCount
+                  : 0;
 
-                  <span>
-                    Votos:{" "}
-                    <strong className="text-white">
-                      {voteCount}/{members.length}
-                    </strong>
-                  </span>
-                </div>
+                const myRating = titleRatings.find(
+                  (item) =>
+                    item.uid === currentUid
+                );
 
-                <div className="mt-3 font-pixel text-[9px] text-pink-300">
-                  DAR MINHA NOTA →
-                </div>
-              </div>
-            </button>
-          );
-        })}
+                const addedByMember =
+                  members.find(
+                    (member) =>
+                      member.uid === title.addedBy
+                  );
+
+                const pendingMembers =
+                  members.filter(
+                    (member) =>
+                      !titleRatings.some(
+                        (rating) =>
+                          rating.uid === member.uid
+                      )
+                  );
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() =>
+                      onOpenTitle(title)
+                    }
+                    className="w-full rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-pink-400/40 hover:bg-white/[0.05]"
+                  >
+                    <div className="flex gap-4">
+                      <div className="h-32 w-22 w-[88px] shrink-0 overflow-hidden rounded-2xl bg-black/30">
+                        {title.posterPath ? (
+                          <img
+                            src={`${TMDB_IMAGE_BASE}${title.posterPath}`}
+                            alt={title.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center p-2 text-center font-pixel text-[7px] text-slate-600">
+                            SEM IMAGEM
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="font-pixel text-[8px] text-cyan-300">
+                          {title.mediaType === "movie"
+                            ? "FILME"
+                            : "SÉRIE"}
+                        </div>
+
+                        <div className="mt-1 font-retro text-lg text-white">
+                          {title.title}
+                        </div>
+
+                        <div className="mt-2 font-retro text-xs text-slate-500">
+                          Adicionado por{" "}
+                          {addedByMember
+                            ? `${addedByMember.avatar} ${addedByMember.username}`
+                            : "participante"}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-4">
+                          <div>
+                            <div className="font-pixel text-[7px] text-slate-500">
+                              MÉDIA
+                            </div>
+
+                            <div className="mt-1 font-pixel text-sm text-yellow-300">
+                              {voteCount
+                                ? average.toFixed(2)
+                                : "--"}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="font-pixel text-[7px] text-slate-500">
+                              VOTOS
+                            </div>
+
+                            <div className="mt-1 font-pixel text-sm text-white">
+                              {voteCount}/
+                              {members.length}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="font-pixel text-[7px] text-slate-500">
+                              SUA NOTA
+                            </div>
+
+                            <div className="mt-1 font-pixel text-sm text-pink-300">
+                              {myRating
+                                ? myRating.rating.toFixed(
+                                    1
+                                  )
+                                : "FALTA"}
+                            </div>
+                          </div>
+                        </div>
+
+                        {pendingMembers.length > 0 && (
+                          <div className="mt-3 font-retro text-xs text-slate-400">
+                            Aguardando:{" "}
+                            {pendingMembers
+                              .map(
+                                (member) =>
+                                  member.username
+                              )
+                              .join(", ")}
+                          </div>
+                        )}
+
+                        <div className="mt-4 font-pixel text-[8px] text-pink-300">
+                          {myRating
+                            ? "ALTERAR MINHA NOTA →"
+                            : "DAR MINHA NOTA →"}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
