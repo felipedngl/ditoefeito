@@ -344,9 +344,22 @@ export default function FilmesPage() {
     setRatingOpen(true);
   }
 
-  function closeModal() {
+function closeModal() {
     setSelectedItem(null);
     setRatingOpen(false);
+  
+    const params = new URLSearchParams(
+      window.location.search
+    );
+  
+    if (
+      params.get("edit") ||
+      params.get("sessionTitle")
+    ) {
+      router.replace("/filmes", {
+        scroll: false,
+      });
+    }
   }
 
   if (loading) {
@@ -1488,8 +1501,17 @@ function SharedSessionPanel({
           const titleRatings =
             ratings[key] || [];
 
-          const firstRating =
-            titleRatings[0];
+          const voteCount =
+            titleRatings.length;
+          
+          const average =
+            voteCount
+              ? titleRatings.reduce(
+                  (sum, rating) =>
+                    sum + rating.rating,
+                  0
+                ) / voteCount
+              : 0;
 
           const item: MediaItem = {
             id: title.mediaId,
@@ -1535,17 +1557,27 @@ function SharedSessionPanel({
                   {title.title}
                 </div>
 
-                {firstRating && (
-                  <div className="mt-1 font-retro text-base text-slate-500">
-                    Já avaliaram:
-                    {" "}
-                    {firstRating.rating.toFixed(1)}
-                  </div>
-                )}
-
-                <div className="mt-2 font-pixel text-[9px] text-pink-300">
-                  DAR MINHA NOTA →
-                </div>
+              <div className="mt-1 flex flex-wrap gap-3 font-retro text-base text-slate-400">
+                <span>
+                  Média:{" "}
+                  <strong className="text-yellow-300">
+                    {voteCount
+                      ? average.toFixed(2)
+                      : "--"}
+                  </strong>
+                </span>
+              
+                <span>
+                  Votos:{" "}
+                  <strong className="text-white">
+                    {voteCount}/{members.length}
+                  </strong>
+                </span>
+              </div>
+              
+              <div className="mt-2 font-pixel text-[9px] text-pink-300">
+                DAR MINHA NOTA →
+              </div>
               </div>
             </button>
           );
