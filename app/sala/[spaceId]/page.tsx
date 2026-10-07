@@ -386,11 +386,23 @@ export default function SalaPage() {
     }
   }
 
-  function openCatalog() {
-    router.push("/filmes");
-  }
+function openCatalog() {
+  router.push("/filmes");
+}
 
-  function openTitle(title: SpaceTitle) {
+function openSessionWindow() {
+  if (typeof window === "undefined") return;
+
+  window.open(
+    window.location.origin +
+      "/sala/" +
+      spaceId,
+    "ditoefeito-sessao",
+    "popup=yes,width=520,height=820"
+  );
+}
+
+function openTitle(title: SpaceTitle) {
     /*
      * O catálogo continuará sendo responsável pela
      * janela de avaliação. Passamos o título pela URL
@@ -583,7 +595,12 @@ export default function SalaPage() {
 
               <button
                 type="button"
-                onClick={shareInvite}
+                onClick={openSessionWindow}
+                className="flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-300 transition hover:border-cyan-300 hover:text-white"
+              >
+                <ExternalLink size={16} />
+                ABRIR SESSÃO
+              </button>
                 disabled={sharing}
                 className="flex items-center gap-2 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 text-sm text-pink-300 transition hover:border-pink-300 hover:text-white disabled:opacity-50"
               >
