@@ -376,7 +376,8 @@ export default function SalaPage() {
     if (
       !space ||
       !currentUid ||
-      !isMember
+      !isMember ||
+      isHost
     ) {
       return;
     }
