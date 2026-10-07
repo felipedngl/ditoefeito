@@ -51,7 +51,8 @@ type MediaItem = {
   popularity: number;
 };
 
-const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+const TMDB_IMAGE_BASE = 
+  "https://image.tmdb.org/t/p/w500";
 
 export default function FilmesPage() {
   const router = useRouter();
