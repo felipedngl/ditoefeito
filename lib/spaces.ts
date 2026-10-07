@@ -76,21 +76,14 @@ function withTimeout<T>(
   ]);
 }
 
-function generateCode(
-  length = 6
-): string {
-  const chars =
-    "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function generateCode(length = 6): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
   let code = "";
 
   for (let i = 0; i < length; i += 1) {
     code +=
-      chars[
-        Math.floor(
-          Math.random() * chars.length
-        )
-      ];
+      chars[Math.floor(Math.random() * chars.length)];
   }
 
   return code;
@@ -104,29 +97,21 @@ async function codeAlreadyExists(
     where("code", "==", code)
   );
 
-  const snapshot =
-    await withTimeout(
-      getDocs(q),
-      "O Firebase demorou demais para verificar o código da sala."
-    );
+  const snapshot = await withTimeout(
+    getDocs(q),
+    "O Firebase demorou demais para verificar o código da sala."
+  );
 
   return snapshot.docs.some(
-    (item) =>
-      item.data().status === "waiting"
+    (item) => item.data().status === "waiting"
   );
 }
 
 async function generateUniqueCode(): Promise<string> {
-  for (
-    let attempt = 0;
-    attempt < 10;
-    attempt += 1
-  ) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     const code = generateCode();
 
-    if (
-      !(await codeAlreadyExists(code))
-    ) {
+    if (!(await codeAlreadyExists(code))) {
       return code;
     }
   }
@@ -143,17 +128,14 @@ export async function createSpace(params: {
   name: string;
   mode: SpaceMode;
 }): Promise<Space> {
-  const code =
-    await generateUniqueCode();
+  const code = await generateUniqueCode();
 
   const spaceRef = doc(
     collection(db, "spaces")
   );
 
   const maxParticipants =
-    params.mode === "couple"
-      ? 2
-      : 10;
+    params.mode === "couple" ? 2 : 10;
 
   const space: Space = {
     id: spaceRef.id,
@@ -168,10 +150,8 @@ export async function createSpace(params: {
   await withTimeout(
     setDoc(spaceRef, {
       ...space,
-      createdAt:
-        serverTimestamp(),
-      updatedAt:
-        serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     }),
     "Não foi possível criar a sala."
   );
@@ -187,12 +167,10 @@ export async function createSpace(params: {
   await withTimeout(
     setDoc(memberRef, {
       uid: params.hostUid,
-      username:
-        params.hostUsername,
+      username: params.hostUsername,
       avatar: params.hostAvatar,
       role: "host",
-      joinedAt:
-        serverTimestamp(),
+      joinedAt: serverTimestamp(),
     }),
     "Não foi possível registrar o anfitrião."
   );
@@ -215,32 +193,25 @@ export async function findWaitingSpaceByCode(
     where("code", "==", normalized)
   );
 
-  const snapshot =
-    await withTimeout(
-      getDocs(q),
-      "O Firebase demorou demais para localizar a sala."
-    );
+  const snapshot = await withTimeout(
+    getDocs(q),
+    "O Firebase demorou demais para localizar a sala."
+  );
 
-  const spaceDoc =
-    snapshot.docs.find(
-      (item) =>
-        item.data().status ===
-        "waiting"
-    );
+  const spaceDoc = snapshot.docs.find(
+    (item) =>
+      item.data().status === "waiting"
+  );
 
   if (!spaceDoc) {
     return null;
   }
 
-  const data =
-    spaceDoc.data();
+  const data = spaceDoc.data();
 
   return {
     id: spaceDoc.id,
-    ...(data as Omit<
-      Space,
-      "id"
-    >),
+    ...(data as Omit<Space, "id">),
   };
 }
 
@@ -266,12 +237,10 @@ export async function joinSpace(params: {
         username: params.username,
         avatar: params.avatar,
         role:
-          params.uid ===
-          params.space.hostUid
+          params.uid === params.space.hostUid
             ? "host"
             : "member",
-        joinedAt:
-          serverTimestamp(),
+        joinedAt: serverTimestamp(),
       },
       { merge: true }
     ),
@@ -324,8 +293,359 @@ export function subscribeToMembers(
     members: SpaceMember[]
   ) => void
 ): () => void {
-  const membersRef =
-    collection(
-      db,
-      "spaces",
-      spa
+  const membersRef = collection(
+    db,
+    "spaces",
+    spaceId,
+    "members"
+  );
+
+  return onSnapshot(
+    membersRef,
+    (snapshot) => {
+      const members =
+        snapshot.docs.map(
+          (item) =>
+            item.data() as SpaceMember
+        );
+
+      members.sort((a, b) => {
+        if (a.role === "host") {
+          return -1;
+        }
+
+        if (b.role === "host") {
+          return 1;
+        }
+
+        return a.username.localeCompare(
+          b.username
+        );
+      });
+
+      callback(members);
+    },
+    (error) => {
+      console.error(
+        "Erro ao observar participantes:",
+        error
+      );
+
+      callback([]);
+    }
+  );
+}
+
+function spaceTitleId(
+  mediaType: "movie" | "tv",
+  mediaId: number
+): string {
+  return `${mediaType}_${mediaId}`;
+}
+
+export async function addTitleToSpace(
+  spaceId: string,
+  title: Omit<
+    SpaceTitle,
+    "id" | "addedAt"
+  >
+): Promise<void> {
+  const id = spaceTitleId(
+    title.mediaType,
+    title.mediaId
+  );
+
+  const ref = doc(
+    db,
+    "spaces",
+    spaceId,
+    "titles",
+    id
+  );
+
+  await withTimeout(
+    setDoc(
+      ref,
+      {
+        ...title,
+        id,
+        addedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ),
+    "Não foi possível adicionar o título à sessão."
+  );
+}
+
+export async function getSpaceTitles(
+  spaceId: string
+): Promise<SpaceTitle[]> {
+  const ref = collection(
+    db,
+    "spaces",
+    spaceId,
+    "titles"
+  );
+
+  const snapshot = await withTimeout(
+    getDocs(ref),
+    "O Firebase demorou demais para carregar os títulos da sessão."
+  );
+
+  return snapshot.docs
+    .map(
+      (item) =>
+        item.data() as SpaceTitle
+    )
+    .sort((a, b) => {
+      const aTime =
+        a.addedAt &&
+        typeof a.addedAt === "object" &&
+        "toMillis" in a.addedAt
+          ? Number(
+              (
+                a.addedAt as {
+                  toMillis: () => number;
+                }
+              ).toMillis()
+            )
+          : 0;
+
+      const bTime =
+        b.addedAt &&
+        typeof b.addedAt === "object" &&
+        "toMillis" in b.addedAt
+          ? Number(
+              (
+                b.addedAt as {
+                  toMillis: () => number;
+                }
+              ).toMillis()
+            )
+          : 0;
+
+      return aTime - bTime;
+    });
+}
+
+export function subscribeToSpaceTitles(
+  spaceId: string,
+  callback: (
+    titles: SpaceTitle[]
+  ) => void
+): () => void {
+  const ref = collection(
+    db,
+    "spaces",
+    spaceId,
+    "titles"
+  );
+
+  return onSnapshot(
+    ref,
+    (snapshot) => {
+      const titles =
+        snapshot.docs.map(
+          (item) =>
+            item.data() as SpaceTitle
+        );
+
+      titles.sort((a, b) => {
+        const aTime =
+          a.addedAt &&
+          typeof a.addedAt === "object" &&
+          "toMillis" in a.addedAt
+            ? Number(
+                (
+                  a.addedAt as {
+                    toMillis: () => number;
+                  }
+                ).toMillis()
+              )
+            : 0;
+
+        const bTime =
+          b.addedAt &&
+          typeof b.addedAt === "object" &&
+          "toMillis" in b.addedAt
+            ? Number(
+                (
+                  b.addedAt as {
+                    toMillis: () => number;
+                  }
+                ).toMillis()
+              )
+            : 0;
+
+        return aTime - bTime;
+      });
+
+      callback(titles);
+    },
+    (error) => {
+      console.error(
+        "Erro ao observar títulos da sala:",
+        error
+      );
+
+      callback([]);
+    }
+  );
+}
+
+export async function saveSpaceRating(
+  spaceId: string,
+  mediaType: "movie" | "tv",
+  mediaId: number,
+  rating: {
+    uid: string;
+    value: number;
+    review: string;
+  }
+): Promise<void> {
+  const titleId = spaceTitleId(
+    mediaType,
+    mediaId
+  );
+
+  const ref = doc(
+    db,
+    "spaces",
+    spaceId,
+    "titles",
+    titleId,
+    "ratings",
+    rating.uid
+  );
+
+  await withTimeout(
+    setDoc(
+      ref,
+      {
+        uid: rating.uid,
+        rating: rating.value,
+        review: rating.review,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ),
+    "Não foi possível salvar sua avaliação na sessão."
+  );
+}
+
+export async function getSpaceRatings(
+  spaceId: string,
+  mediaType: "movie" | "tv",
+  mediaId: number
+): Promise<SpaceRating[]> {
+  const titleId = spaceTitleId(
+    mediaType,
+    mediaId
+  );
+
+  const ref = collection(
+    db,
+    "spaces",
+    spaceId,
+    "titles",
+    titleId,
+    "ratings"
+  );
+
+  const snapshot = await withTimeout(
+    getDocs(ref),
+    "O Firebase demorou demais para carregar as avaliações."
+  );
+
+  return snapshot.docs.map(
+    (item) =>
+      item.data() as SpaceRating
+  );
+}
+
+export function subscribeToSpaceRatings(
+  spaceId: string,
+  mediaType: "movie" | "tv",
+  mediaId: number,
+  callback: (
+    ratings: SpaceRating[]
+  ) => void
+): () => void {
+  const titleId = spaceTitleId(
+    mediaType,
+    mediaId
+  );
+
+  const ref = collection(
+    db,
+    "spaces",
+    spaceId,
+    "titles",
+    titleId,
+    "ratings"
+  );
+
+  return onSnapshot(
+    ref,
+    (snapshot) => {
+      callback(
+        snapshot.docs.map(
+          (item) =>
+            item.data() as SpaceRating
+        )
+      );
+    },
+    (error) => {
+      console.error(
+        "Erro ao observar avaliações da sessão:",
+        error
+      );
+
+      callback([]);
+    }
+  );
+}
+
+export async function startSpace(
+  spaceId: string
+): Promise<void> {
+  const ref = doc(
+    db,
+    "spaces",
+    spaceId
+  );
+
+  await withTimeout(
+    setDoc(
+      ref,
+      {
+        status: "active",
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ),
+    "Não foi possível iniciar a sessão."
+  );
+}
+
+export async function lockSpace(
+  spaceId: string
+): Promise<void> {
+  const ref = doc(
+    db,
+    "spaces",
+    spaceId
+  );
+
+  await withTimeout(
+    setDoc(
+      ref,
+      {
+        status: "locked",
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ),
+    "Não foi possível encerrar a sessão."
+  );
+}
