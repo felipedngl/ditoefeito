@@ -15,7 +15,10 @@ import {
 
 import { auth, db, googleProvider } from "./firebase";
 
-export type ProfileMode = "solo" | "couple" | "group";
+export type ProfileMode =
+  | "solo"
+  | "couple"
+  | "group";
 
 export interface UserProfile {
   username: string;
@@ -27,12 +30,6 @@ export interface UserProfile {
   updatedAt?: unknown;
 }
 
-/*
- * Avatares disponíveis.
- *
- * Mantemos cada avatar apenas uma vez para
- * evitar opções visualmente duplicadas.
- */
 export const AVATARS = [
   "🦊",
   "🐼",
@@ -65,20 +62,34 @@ export const AVATARS = [
   "🌈",
 ];
 
+const FIREBASE_TIMEOUT = 10000;
+
 /*
- * Sorteia um avatar.
+ * Evita que uma operação do Firebase
+ * deixe a interface presa para sempre.
  */
+function withTimeout<T>(
+  promise: Promise<T>,
+  message: string
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error(message));
+      }, FIREBASE_TIMEOUT);
+    }),
+  ]);
+}
+
 export function randomAvatar(): string {
   return AVATARS[
-    Math.floor(Math.random() * AVATARS.length)
+    Math.floor(
+      Math.random() * AVATARS.length
+    )
   ];
 }
 
-/*
- * Nomes iniciais neutros.
- *
- * Não usamos nomes de pessoas como exemplo.
- */
 export function createUsername(): string {
   const names = [
     "CineNauta",
@@ -96,14 +107,15 @@ export function createUsername(): string {
   ];
 
   return names[
-    Math.floor(Math.random() * names.length)
+    Math.floor(
+      Math.random() * names.length
+    )
   ];
 }
 
-/*
- * Cria o identificador usado depois do @.
- */
-export function slugifyUsername(value: string): string {
+export function slugifyUsername(
+  value: string
+): string {
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -115,63 +127,94 @@ export function slugifyUsername(value: string): string {
 }
 
 /*
- * Garante uma sessão anônima quando ainda
- * não existe usuário autenticado.
+ * Entrada como convidado.
+ *
+ * O timeout impede que uma falha de conexão
+ * deixe o botão travado indefinidamente.
  */
 export async function ensureAnonymousUser(): Promise<User> {
   if (auth.currentUser) {
     return auth.currentUser;
   }
 
-  const result = await signInAnonymously(auth);
-
-  return result.user;
-}
-
-/*
- * Login com Google.
- *
- * Se já estivermos em uma conta anônima,
- * vinculamos o Google à mesma conta para
- * preservar os dados existentes.
- */
-export async function signInWithGoogle(): Promise<User> {
-  const currentUser = auth.currentUser;
-
-  if (currentUser?.isAnonymous) {
-    const result = await linkWithPopup(
-      currentUser,
-      googleProvider
-    );
-
-    return result.user;
-  }
-
-  const result = await signInWithPopup(
-    auth,
-    googleProvider
+  const result = await withTimeout(
+    signInAnonymously(auth),
+    "Não foi possível conectar ao Firebase."
   );
 
   return result.user;
 }
 
 /*
- * Observa mudanças de autenticação.
+ * Login Google.
+ *
+ * Também possui limite de tempo para evitar
+ * que a tela fique presa caso o popup ou
+ * Firebase não respondam.
+ */
+export async function signInWithGoogle(): Promise<User> {
+  const currentUser = auth.currentUser;
+
+  if (currentUser?.isAnonymous) {
+    const result = await withTimeout(
+      linkWithPopup(
+        currentUser,
+        googleProvider
+      ),
+      "O login com Google demorou demais."
+    );
+
+    return result.user;
+  }
+
+  const result = await withTimeout(
+    signInWithPopup(
+      auth,
+      googleProvider
+    ),
+    "O login com Google demorou demais."
+  );
+
+  return result.user;
+}
+
+/*
+ * Observa o usuário autenticado.
+ *
+ * O Firebase continua sendo a fonte oficial
+ * do estado de autenticação.
  */
 export function subscribeToAuth(
-  callback: (user: User | null) => void
+  callback: (
+    user: User | null
+  ) => void
 ): () => void {
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(
+    auth,
+    callback
+  );
 }
 
 /*
  * Busca o perfil do usuário.
+ *
+ * O timeout é especialmente importante aqui,
+ * porque várias páginas dependem dessa função
+ * para sair do estado "CARREGANDO".
  */
 export async function getUserProfile(
   uid: string
 ): Promise<UserProfile | null> {
-  const ref = doc(db, "users", uid);
-  const snapshot = await getDoc(ref);
+  const ref = doc(
+    db,
+    "users",
+    uid
+  );
+
+  const snapshot = await withTimeout(
+    getDoc(ref),
+    "O Firebase demorou demais para carregar seu perfil."
+  );
 
   if (!snapshot.exists()) {
     return null;
@@ -181,7 +224,10 @@ export async function getUserProfile(
 }
 
 /*
- * Salva ou atualiza o perfil.
+ * Salva o perfil.
+ *
+ * Tanto a leitura anterior quanto a gravação
+ * possuem timeout.
  */
 export async function saveUserProfile(
   user: User,
@@ -193,29 +239,50 @@ export async function saveUserProfile(
     spaceName: string;
   }
 ): Promise<void> {
-  const ref = doc(db, "users", user.uid);
+  const ref = doc(
+    db,
+    "users",
+    user.uid
+  );
 
-  const existing = await getDoc(ref);
+  const existing = await withTimeout(
+    getDoc(ref),
+    "O Firebase demorou demais para acessar seu perfil."
+  );
 
-  await setDoc(
-    ref,
-    {
-      username: profile.username,
-      usernameSlug: profile.usernameSlug,
-      avatar: profile.avatar,
-      mode: profile.mode,
-      spaceName: profile.spaceName,
+  await withTimeout(
+    setDoc(
+      ref,
+      {
+        username:
+          profile.username,
 
-      updatedAt: serverTimestamp(),
+        usernameSlug:
+          profile.usernameSlug,
 
-      ...(existing.exists()
-        ? {}
-        : {
-            createdAt: serverTimestamp(),
-          }),
-    },
-    {
-      merge: true,
-    }
+        avatar:
+          profile.avatar,
+
+        mode:
+          profile.mode,
+
+        spaceName:
+          profile.spaceName,
+
+        updatedAt:
+          serverTimestamp(),
+
+        ...(existing.exists()
+          ? {}
+          : {
+              createdAt:
+                serverTimestamp(),
+            }),
+      },
+      {
+        merge: true,
+      }
+    ),
+    "O Firebase demorou demais para salvar seu perfil."
   );
 }
