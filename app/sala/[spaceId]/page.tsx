@@ -37,16 +37,10 @@ import {
   ArrowLeft,
   Check,
   Copy,
-  Film,
   Share2,
-  Star,
-  Tv,
   UserCheck,
   UserX,
 } from "lucide-react";
-
-const TMDB_IMAGE_BASE =
-  "https://image.tmdb.org/t/p/w500";
 
 export default function SalaPage() {
   const router = useRouter();
@@ -100,6 +94,14 @@ export default function SalaPage() {
    * =====================================================
    * CARREGAR USUÁRIO + SALA EM TEMPO REAL
    * =====================================================
+   *
+   * A sala é identificada pelo ID da própria URL:
+   *
+   * /sala/ID_DA_SALA
+   *
+   * Os dados vêm diretamente do Firestore.
+   *
+   * Não usamos sessionStorage.
    */
 
   useEffect(() => {
@@ -152,6 +154,10 @@ export default function SalaPage() {
 
     loadUser();
 
+    /*
+     * SALA
+     */
+
     const unsubscribeSpace =
       subscribeToSpace(
         spaceId,
@@ -178,22 +184,12 @@ export default function SalaPage() {
           );
 
           setLoading(false);
-
-          sessionStorage.setItem(
-            "ditoefeito_space",
-            JSON.stringify(
-              nextSpace
-            )
-          );
-
-          sessionStorage.setItem(
-            "ditoefeito_active_space",
-            JSON.stringify(
-              nextSpace
-            )
-          );
         }
       );
+
+    /*
+     * PARTICIPANTES
+     */
 
     const unsubscribeMembers =
       subscribeToMembers(
@@ -207,6 +203,10 @@ export default function SalaPage() {
         }
       );
 
+    /*
+     * PEDIDOS DE ENTRADA
+     */
+
     const unsubscribeRequests =
       subscribeToJoinRequests(
         spaceId,
@@ -218,6 +218,10 @@ export default function SalaPage() {
           );
         }
       );
+
+    /*
+     * TÍTULOS DA SESSÃO
+     */
 
     const unsubscribeTitles =
       subscribeToSpaceTitles(
@@ -283,9 +287,10 @@ export default function SalaPage() {
    * =====================================================
    * SOLICITAR ENTRADA
    *
-   * Isso serve principalmente para quem chegou ao lobby
-   * por um código.
-   * =====================================================
+   * Serve principalmente para quem chegou ao lobby
+   * através de um código.
+   *
+   * O pedido é salvo no Firestore.
    */
 
   useEffect(() => {
@@ -307,14 +312,22 @@ export default function SalaPage() {
         setRequesting(true);
         setError("");
 
-        if (!space || !profile || !currentUid) return;
-        
+        if (
+          !space ||
+          !profile ||
+          !currentUid
+        ) {
+          return;
+        }
+
         const result =
           await requestToJoinSpace({
             space,
             uid: currentUid,
-            username: profile.username,
-            avatar: profile.avatar,
+            username:
+              profile.username,
+            avatar:
+              profile.avatar,
           });
 
         if (cancelled) {
@@ -365,11 +378,10 @@ export default function SalaPage() {
    * =====================================================
    * QUANDO O HOST ACEITA
    *
-   * O Firebase atualiza "members".
+   * O Firestore atualiza a coleção "members".
    *
-   * O convidado detecta que virou membro e vai sozinho
-   * para o catálogo.
-   * =====================================================
+   * O convidado percebe que virou membro
+   * e vai automaticamente para o catálogo.
    */
 
   useEffect(() => {
@@ -382,16 +394,6 @@ export default function SalaPage() {
       return;
     }
 
-    sessionStorage.setItem(
-      "ditoefeito_space",
-      JSON.stringify(space)
-    );
-
-    sessionStorage.setItem(
-      "ditoefeito_active_space",
-      JSON.stringify(space)
-    );
-
     router.replace(
       "/filmes"
     );
@@ -399,6 +401,7 @@ export default function SalaPage() {
     space,
     currentUid,
     isMember,
+    isHost,
     router,
   ]);
 
@@ -540,7 +543,7 @@ export default function SalaPage() {
 
   /*
    * =====================================================
-   * CÓDIGO / COMPARTILHAR
+   * CONVITE
    * =====================================================
    */
 
@@ -586,9 +589,12 @@ export default function SalaPage() {
         await navigator.share({
           title:
             "Convite para o Dito & Feito",
+
           text:
             `Entre na sala "${space.name}" do Dito & Feito usando o código ${space.code}.`,
-          url: inviteUrl,
+
+          url:
+            inviteUrl,
         });
       } else {
         await navigator.clipboard.writeText(
@@ -634,22 +640,11 @@ export default function SalaPage() {
       });
 
       /*
-       * Assim que aceitar:
-       * o host também vai para o catálogo.
+       * O convidado será enviado automaticamente
+       * ao catálogo pelo listener de "members".
        *
-       * O convidado vai automaticamente através
-       * do listener de members acima.
+       * O anfitrião também vai para o catálogo.
        */
-      sessionStorage.setItem(
-        "ditoefeito_space",
-        JSON.stringify(space)
-      );
-
-      sessionStorage.setItem(
-        "ditoefeito_active_space",
-        JSON.stringify(space)
-      );
-
       router.replace(
         "/filmes"
       );
@@ -797,7 +792,6 @@ export default function SalaPage() {
           </header>
 
           <section className="mt-12 rounded-3xl border border-pink-400/20 bg-black/30 p-8 text-center shadow-2xl backdrop-blur">
-
             <div className="text-6xl">
               {roomFull
                 ? "🚫"
@@ -919,16 +913,11 @@ export default function SalaPage() {
    * =====================================================
    * HOST NO LOBBY
    * =====================================================
-   *
-   * IMPORTANTE:
-   * O host fica aqui enquanto ninguém foi aceito.
-   * Assim ele consegue ver os perfis que chegaram.
    */
 
   return (
     <main className="retro-grid min-h-screen px-5 pb-16">
       <div className="mx-auto w-full max-w-5xl">
-
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 py-6">
           <button
             type="button"
@@ -960,7 +949,6 @@ export default function SalaPage() {
         </header>
 
         <section className="mt-8 rounded-3xl border border-pink-400/20 bg-black/30 p-6 shadow-2xl backdrop-blur md:p-8">
-
           <div className="text-center">
             <div className="font-pixel text-[9px] text-pink-400">
               {space.mode ===
