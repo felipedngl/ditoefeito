@@ -509,13 +509,18 @@ async function handleRemoveFromSession() {
           </button>
 
           <nav className="hidden items-center gap-6 md:flex">
-            <button
-              type="button"
-              onClick={() => router.push("/filmes")}
-              className="font-pixel text-[10px] text-cyan-300"
-            >
-              CATÁLOGO
-            </button>
+          <button
+            type="button"
+            onClick={() => router.push("/filmes")}
+            className="flex items-center gap-2"
+            aria-label="Voltar para o catálogo"
+          >
+            <img
+              src="/logo.png"
+              alt="Dito & Feito"
+              className="h-10 w-auto max-w-[180px] object-contain"
+            />
+          </button>
 
             <button
               type="button"
