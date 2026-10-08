@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
+  BookOpen,
   Film,
+  Star,
   Trophy,
   Tv,
   UserRound,
-  BookOpen,
-  Star,
 } from "lucide-react";
 
 import {
@@ -84,9 +85,7 @@ export default function PodioPage() {
 
           setRatings(savedRatings);
 
-          if (
-            userProfile.mode !== "solo"
-          ) {
+          if (userProfile.mode !== "solo") {
             const raw =
               sessionStorage.getItem(
                 "ditoefeito_space"
@@ -244,7 +243,7 @@ export default function PodioPage() {
     return (
       <main className="retro-grid flex min-h-screen items-center justify-center">
         <div className="font-pixel text-sm text-pink-400">
-          CARREGANDO...
+          CARREGANDO PÓDIO...
         </div>
       </main>
     );
@@ -259,61 +258,65 @@ export default function PodioPage() {
     !!space;
 
   return (
-    <main className="retro-grid min-h-screen px-5 pb-16">
-      <div className="mx-auto w-full max-w-7xl">
-
-        <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 py-6">
-
+    <main className="retro-grid min-h-screen text-white">
+      <header className="border-b border-white/10 bg-[#070910]/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-5 md:px-6">
           <button
             type="button"
-            onClick={() => router.push("/")}
-            className="flex items-center gap-3"
-            aria-label="Voltar para o início"
+            onClick={() => router.push("/filmes")}
+            className="flex items-center gap-2 font-pixel text-[10px] text-slate-300 transition hover:text-white"
           >
-            <img
-              src="/logo.png"
-              alt="Dito & Feito"
-              className="h-10 w-auto max-w-[180px] object-contain"
-            />
+            <ArrowLeft size={16} />
+            CATÁLOGO
           </button>
+
+          <div className="text-center">
+            <div className="font-pixel text-[9px] text-pink-300">
+              DITO & FEITO
+            </div>
+
+            <h1 className="mt-1 font-pixel text-lg text-white">
+              PÓDIO
+            </h1>
+          </div>
 
           <button
             type="button"
             onClick={() =>
               router.push("/perfil")
             }
-            className="flex items-center gap-3 rounded-xl px-2 py-1 transition hover:bg-white/[0.04]"
+            className="flex items-center gap-2 rounded-xl px-2 py-1 transition hover:bg-white/[0.04]"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-2xl">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-xl">
               {profile.avatar}
             </div>
 
             <div className="hidden text-left sm:block">
-              <div className="font-pixel text-[10px] text-white">
+              <div className="font-pixel text-[9px] text-white">
                 {profile.username}
               </div>
 
-              <div className="font-retro text-lg text-slate-500">
+              <div className="font-retro text-sm text-slate-500">
                 @{profile.usernameSlug}
               </div>
             </div>
           </button>
+        </div>
+      </header>
 
-        </header>
-
-        <nav className="mt-5 flex gap-2 overflow-x-auto pb-2">
-
+      <section className="mx-auto max-w-7xl px-4 pb-16 md:px-6">
+        <nav className="flex gap-2 overflow-x-auto py-5">
           <NavButton
-            icon={<Film size={17} />}
-            label="Catálogo"
+            icon={<Film size={16} />}
+            label="CATÁLOGO"
             onClick={() =>
               router.push("/filmes")
             }
           />
 
           <NavButton
-            icon={<BookOpen size={17} />}
-            label="Biblioteca"
+            icon={<BookOpen size={16} />}
+            label="BIBLIOTECA"
             onClick={() =>
               router.push(
                 "/filmes/biblioteca"
@@ -322,8 +325,8 @@ export default function PodioPage() {
           />
 
           <NavButton
-            icon={<Trophy size={17} />}
-            label="Pódio"
+            icon={<Trophy size={16} />}
+            label="PÓDIO"
             active
             onClick={() =>
               router.push(
@@ -333,73 +336,70 @@ export default function PodioPage() {
           />
 
           <NavButton
-            icon={<UserRound size={17} />}
-            label="Perfil"
+            icon={<UserRound size={16} />}
+            label="PERFIL"
             onClick={() =>
               router.push("/perfil")
             }
           />
-
         </nav>
 
-        <section className="mt-12 text-center">
-
-          <div className="flex items-center justify-center gap-3">
-            <Trophy
-              size={28}
-              className="text-yellow-300"
-            />
-
-            <p className="font-pixel text-xs text-yellow-300">
+        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+          <div>
+            <p className="font-pixel text-[9px] text-yellow-300">
               {sharedMode
-                ? "PÓDIO DA SESSÃO"
-                : "SEU RANKING"}
+                ? "RANKING DA SESSÃO"
+                : "SEU CINEMA · SUAS NOTAS"}
             </p>
 
-            <Trophy
-              size={28}
-              className="text-yellow-300"
-            />
+            <h2 className="mt-2 font-pixel text-2xl leading-tight text-white md:text-4xl">
+              {sharedMode
+                ? space?.name
+                : "MEU PÓDIO"}
+            </h2>
+
+            <p className="mt-3 max-w-2xl font-retro text-base leading-6 text-slate-400 md:text-lg">
+              {sharedMode
+                ? "Os títulos da sessão organizados pela média das notas de quem já votou."
+                : "Seus filmes e séries organizados pelas notas que você deu."}
+            </p>
           </div>
 
-          <h1 className="mt-5 font-pixel text-2xl leading-relaxed text-white sm:text-4xl">
-            {sharedMode
-              ? space?.name
-              : "MEU PÓDIO"}
-          </h1>
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-yellow-300/20 bg-yellow-300/10 text-yellow-300">
+            <Trophy size={30} />
+          </div>
+        </div>
 
-          <p className="mx-auto mt-4 max-w-2xl font-retro text-2xl text-slate-400">
-            {sharedMode
-              ? "As notas de vocês juntas. Cada título mostra a média de quem já votou."
-              : "Seus filmes e séries favoritos, organizados pelas suas próprias notas."}
-          </p>
+        {sharedMode && (
+          <div className="mt-6 rounded-3xl border border-pink-400/10 bg-white/[0.025] p-4">
+            <div className="font-pixel text-[8px] text-pink-300">
+              PARTICIPANTES
+            </div>
 
-          {sharedMode && (
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {members.map((member) => (
                 <div
                   key={member.uid}
                   className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2"
                 >
-                  <span className="text-xl">
+                  <span className="text-lg">
                     {member.avatar}
                   </span>
 
-                  <span className="font-retro text-lg text-slate-300">
+                  <span className="font-retro text-sm text-slate-300">
                     {member.username}
                   </span>
                 </div>
               ))}
             </div>
-          )}
-
-        </section>
+          </div>
+        )}
 
         {sharedMode ? (
-          <>
+          <div className="mt-10">
             {spaceLoading ? (
-              <div className="mt-14 flex min-h-[220px] items-center justify-center rounded-3xl border border-white/5 bg-white/[0.02]">
-                <div className="font-retro text-2xl text-cyan-300">
+              <div className="flex min-h-[220px] items-center justify-center rounded-3xl border border-white/10 bg-white/[0.025]">
+                <div className="font-pixel text-[10px] text-cyan-300">
                   CARREGANDO PÓDIO...
                 </div>
               </div>
@@ -407,7 +407,7 @@ export default function PodioPage() {
               <>
                 <SharedPodiumSection
                   title="FILMES"
-                  icon={<Film size={18} />}
+                  icon={<Film size={17} />}
                   items={sharedMovies}
                   totalParticipants={
                     members.length
@@ -416,7 +416,7 @@ export default function PodioPage() {
 
                 <SharedPodiumSection
                   title="SÉRIES"
-                  icon={<Tv size={18} />}
+                  icon={<Tv size={17} />}
                   items={sharedSeries}
                   totalParticipants={
                     members.length
@@ -424,24 +424,23 @@ export default function PodioPage() {
                 />
               </>
             )}
-          </>
+          </div>
         ) : (
-          <>
+          <div className="mt-10">
             <PodiumSection
               title="FILMES"
-              icon={<Film size={18} />}
+              icon={<Film size={17} />}
               items={movies}
             />
 
             <PodiumSection
               title="SÉRIES"
-              icon={<Tv size={18} />}
+              icon={<Tv size={17} />}
               items={series}
             />
-          </>
+          </div>
         )}
-
-      </div>
+      </section>
     </main>
   );
 }
@@ -502,23 +501,34 @@ function SharedPodiumSection({
   totalParticipants: number;
 }) {
   return (
-    <section className="mt-14">
+    <section className="mb-12">
+      <div className="mb-5 flex items-end justify-between">
+        <div>
+          <p className="font-pixel text-[9px] text-cyan-300">
+            SESSÃO COMPARTILHADA
+          </p>
 
-      <div className="mb-7 flex items-center gap-4">
-        <div className="h-px flex-1 bg-white/10" />
+          <h2 className="mt-1 flex items-center gap-2 font-pixel text-lg text-white md:text-xl">
+            {icon}
+            {title}
+          </h2>
+        </div>
 
-        <h2 className="flex items-center gap-2 font-pixel text-xs text-cyan-300">
-          {icon}
-          {title}
-        </h2>
-
-        <div className="h-px flex-1 bg-white/10" />
+        <div className="font-pixel text-[8px] text-slate-500">
+          {items.length}{" "}
+          {items.length === 1
+            ? "TÍTULO"
+            : "TÍTULOS"}
+        </div>
       </div>
 
       {!items.length ? (
-        <EmptyPodium />
+        <EmptyPodium
+          shared
+          title={title}
+        />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {items.map(
             (item, index) => (
               <SharedPodiumRow
@@ -535,7 +545,6 @@ function SharedPodiumSection({
           )}
         </div>
       )}
-
     </section>
   );
 }
@@ -570,60 +579,62 @@ function SharedPodiumRow({
   return (
     <article
       className={[
-        "grid grid-cols-[58px_72px_1fr_auto] items-center gap-4 rounded-2xl border p-3 sm:grid-cols-[70px_90px_1fr_auto] sm:p-4",
+        "group grid grid-cols-[42px_64px_1fr_auto] items-center gap-3 rounded-3xl border p-3 transition sm:grid-cols-[52px_80px_1fr_auto] sm:gap-4 sm:p-4",
         isFirst
-          ? "border-yellow-300/40 bg-yellow-300/[0.06]"
+          ? "border-yellow-300/30 bg-yellow-300/[0.06]"
           : isSecond
             ? "border-slate-300/20 bg-white/[0.035]"
             : isThird
-              ? "border-orange-300/20 bg-orange-300/[0.03]"
-              : "border-white/10 bg-white/[0.02]",
+              ? "border-orange-300/20 bg-orange-300/[0.035]"
+              : "border-white/10 bg-white/[0.025] hover:border-cyan-400/20",
       ].join(" ")}
     >
-
       <div className="flex items-center justify-center">
         <span className="font-pixel text-sm text-yellow-300">
           {positionLabel}
         </span>
       </div>
 
-      <div className="aspect-[2/3] overflow-hidden rounded-xl border border-white/10 bg-[#101522]">
+      <div className="aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-[#101522]">
         {item.title.posterPath ? (
           <img
             src={`https://image.tmdb.org/t/p/w300${item.title.posterPath}`}
             alt={item.title.title}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-center font-retro text-sm text-slate-600">
-            SEM
-            <br />
-            CAPA
+          <div className="flex h-full items-center justify-center p-2 text-center font-pixel text-[7px] text-slate-600">
+            SEM IMAGEM
           </div>
         )}
       </div>
 
       <div className="min-w-0">
+        <div className="font-pixel text-[7px] text-cyan-300">
+          {item.title.mediaType === "movie"
+            ? "FILME"
+            : "SÉRIE"}
+        </div>
 
-        <h3 className="line-clamp-2 font-retro text-xl leading-tight text-white sm:text-2xl">
+        <h3 className="mt-1 line-clamp-2 font-retro text-base leading-tight text-white sm:text-lg">
           {item.title.title}
         </h3>
 
         {item.title.year && (
-          <p className="mt-1 font-retro text-base text-slate-500">
+          <p className="mt-1 font-retro text-xs text-slate-500">
             {item.title.year}
           </p>
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-pixel text-[8px] text-cyan-300">
+          <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-pixel text-[7px] text-cyan-300">
             {voted}/{totalParticipants} VOTOS
           </span>
 
           <span
             className={[
-              "rounded-full px-3 py-1 font-pixel text-[8px]",
+              "rounded-full px-2.5 py-1 font-pixel text-[7px]",
               complete
                 ? "bg-green-500/10 text-green-300"
                 : "bg-pink-500/10 text-pink-300",
@@ -631,59 +642,29 @@ function SharedPodiumRow({
           >
             {complete
               ? "TODOS VOTARAM"
-              : "AGUARDANDO NOTAS"}
+              : "AGUARDANDO"}
           </span>
         </div>
-
       </div>
 
-      <div className="flex min-w-[72px] flex-col items-center justify-center rounded-xl border border-yellow-300/10 bg-yellow-300/[0.04] px-3 py-3">
-
+      <div className="flex min-w-[68px] flex-col items-center justify-center rounded-2xl border border-yellow-300/10 bg-yellow-300/[0.04] px-2.5 py-3">
         <Star
-          size={18}
+          size={17}
           fill="currentColor"
           className="text-yellow-300"
         />
 
         <span className="mt-1 font-pixel text-sm text-white">
-          {item.average.toFixed(2)}
+          {voted
+            ? item.average.toFixed(2)
+            : "--"}
         </span>
 
-        <span className="mt-1 font-retro text-xs text-slate-600">
+        <span className="mt-1 font-pixel text-[7px] text-slate-500">
           MÉDIA
         </span>
-
       </div>
-
     </article>
-  );
-}
-
-function NavButton({
-  icon,
-  label,
-  active = false,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        "flex shrink-0 items-center gap-2 rounded-xl border px-4 py-3 font-retro text-xl transition",
-        active
-          ? "border-pink-400/40 bg-pink-500/10 text-pink-200"
-          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white",
-      ].join(" ")}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }
 
@@ -697,24 +678,33 @@ function PodiumSection({
   items: SavedRating[];
 }) {
   return (
-    <section className="mt-14">
+    <section className="mb-12">
+      <div className="mb-5 flex items-end justify-between">
+        <div>
+          <p className="font-pixel text-[9px] text-cyan-300">
+            SUA COLEÇÃO
+          </p>
 
-      <div className="mb-7 flex items-center gap-4">
-        <div className="h-px flex-1 bg-white/10" />
+          <h2 className="mt-1 flex items-center gap-2 font-pixel text-lg text-white md:text-xl">
+            {icon}
+            {title}
+          </h2>
+        </div>
 
-        <h2 className="flex items-center gap-2 font-pixel text-xs text-cyan-300">
-          {icon}
-          {title}
-        </h2>
-
-        <div className="h-px flex-1 bg-white/10" />
-
+        <div className="font-pixel text-[8px] text-slate-500">
+          {items.length}{" "}
+          {items.length === 1
+            ? "TÍTULO"
+            : "TÍTULOS"}
+        </div>
       </div>
 
       {!items.length ? (
-        <EmptyPodium />
+        <EmptyPodium
+          title={title}
+        />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {items.map(
             (item, index) => (
               <PodiumRow
@@ -730,7 +720,6 @@ function PodiumSection({
           )}
         </div>
       )}
-
     </section>
   );
 }
@@ -756,14 +745,14 @@ function PodiumRow({
   return (
     <article
       className={[
-        "grid grid-cols-[58px_72px_1fr_auto] items-center gap-4 rounded-2xl border p-3 sm:grid-cols-[70px_90px_1fr_auto] sm:p-4",
+        "group grid grid-cols-[42px_64px_1fr_auto] items-center gap-3 rounded-3xl border p-3 transition sm:grid-cols-[52px_80px_1fr_auto] sm:gap-4 sm:p-4",
         isFirst
-          ? "border-yellow-300/40 bg-yellow-300/[0.06]"
+          ? "border-yellow-300/30 bg-yellow-300/[0.06]"
           : isSecond
             ? "border-slate-300/20 bg-white/[0.035]"
             : isThird
-              ? "border-orange-300/20 bg-orange-300/[0.03]"
-              : "border-white/10 bg-white/[0.02]",
+              ? "border-orange-300/20 bg-orange-300/[0.035]"
+              : "border-white/10 bg-white/[0.025] hover:border-cyan-400/20",
       ].join(" ")}
     >
       <div className="flex items-center justify-center">
@@ -772,44 +761,48 @@ function PodiumRow({
         </span>
       </div>
 
-      <div className="aspect-[2/3] overflow-hidden rounded-xl border border-white/10 bg-[#101522]">
+      <div className="aspect-[2/3] overflow-hidden rounded-2xl border border-white/10 bg-[#101522]">
         {item.posterPath ? (
           <img
             src={`https://image.tmdb.org/t/p/w300${item.posterPath}`}
             alt={item.title}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-center font-retro text-sm text-slate-600">
-            SEM
-            <br />
-            CAPA
+          <div className="flex h-full items-center justify-center p-2 text-center font-pixel text-[7px] text-slate-600">
+            SEM IMAGEM
           </div>
         )}
       </div>
 
       <div className="min-w-0">
-        <h3 className="line-clamp-2 font-retro text-xl leading-tight text-white sm:text-2xl">
+        <div className="font-pixel text-[7px] text-cyan-300">
+          {item.mediaType === "movie"
+            ? "FILME"
+            : "SÉRIE"}
+        </div>
+
+        <h3 className="mt-1 line-clamp-2 font-retro text-base leading-tight text-white sm:text-lg">
           {item.title}
         </h3>
 
         {item.year && (
-          <p className="mt-1 font-retro text-base text-slate-500">
+          <p className="mt-1 font-retro text-xs text-slate-500">
             {item.year}
           </p>
         )}
 
         {item.review && (
-          <p className="mt-2 line-clamp-2 font-retro text-base text-slate-500">
+          <p className="mt-2 line-clamp-2 font-retro text-xs italic text-slate-500">
             “{item.review}”
           </p>
         )}
       </div>
 
-      <div className="flex min-w-[62px] flex-col items-center justify-center rounded-xl border border-yellow-300/10 bg-yellow-300/[0.04] px-3 py-3">
+      <div className="flex min-w-[68px] flex-col items-center justify-center rounded-2xl border border-yellow-300/10 bg-yellow-300/[0.04] px-2.5 py-3">
         <Star
-          size={18}
+          size={17}
           fill="currentColor"
           className="text-yellow-300"
         />
@@ -817,26 +810,67 @@ function PodiumRow({
         <span className="mt-1 font-pixel text-sm text-white">
           {item.rating.toFixed(1)}
         </span>
-      </div>
 
+        <span className="mt-1 font-pixel text-[7px] text-slate-500">
+          NOTA
+        </span>
+      </div>
     </article>
   );
 }
 
-function EmptyPodium() {
+function EmptyPodium({
+  shared = false,
+  title = "",
+}: {
+  shared?: boolean;
+  title?: string;
+}) {
   return (
-    <div className="flex min-h-[180px] flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/[0.02] px-6 text-center">
-      <div className="text-5xl">
+    <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-yellow-300/10 bg-yellow-300/[0.05] text-2xl">
         🏆
       </div>
 
-      <p className="mt-5 font-pixel text-[10px] text-slate-500">
-        NENHUM TÍTULO NO PÓDIO
+      <p className="mt-4 font-pixel text-[9px] text-slate-400">
+        {title
+          ? `${title} AINDA ESTÁ VAZIO`
+          : "PÓDIO VAZIO"}
       </p>
 
-      <p className="mt-3 max-w-md font-retro text-xl text-slate-600">
-        Avalie alguns filmes ou séries no Catálogo para começar seu ranking.
+      <p className="mx-auto mt-2 max-w-md font-retro text-sm leading-6 text-slate-600">
+        {shared
+          ? "Adicione títulos à sessão e comece a votar para montar este ranking."
+          : "Avalie alguns filmes ou séries no Catálogo para começar seu ranking."}
       </p>
     </div>
+  );
+}
+
+function NavButton({
+  icon,
+  label,
+  active = false,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "flex shrink-0 items-center gap-2 rounded-xl border px-4 py-3 font-pixel text-[9px] transition",
+        active
+          ? "border-pink-400/40 bg-pink-500/10 text-pink-200"
+          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white",
+      ].join(" ")}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
