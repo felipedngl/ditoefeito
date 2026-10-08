@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   ensureAnonymousUser,
-  getUserProfile,
   signInWithGoogle,
 } from "@/lib/auth";
 
@@ -30,12 +29,26 @@ function EntrarSalaContent() {
       return;
     }
 
-    sessionStorage.setItem(
-      "ditoefeito_join_code",
-      code
+    /*
+     * O código agora segue pela própria URL.
+     *
+     * Antes:
+     * /sala?code=ABC123
+     *       ↓
+     * sessionStorage
+     *       ↓
+     * /configurar
+     *
+     * Agora:
+     * /sala?code=ABC123
+     *       ↓
+     * /configurar?mode=couple&code=ABC123
+     *
+     * Assim não dependemos de armazenamento local.
+     */
+    router.push(
+      `/configurar?mode=couple&code=${encodeURIComponent(code)}`
     );
-
-    router.push("/configurar?mode=couple");
   }
 
   async function enterWithGoogle() {
@@ -89,7 +102,6 @@ function EntrarSalaContent() {
   return (
     <main className="retro-grid min-h-screen flex items-center justify-center px-5 py-10">
       <section className="w-full max-w-lg rounded-3xl border border-white/10 bg-black/30 p-6 text-center shadow-2xl backdrop-blur md:p-10">
-
         <button
           type="button"
           onClick={() => router.push("/")}
@@ -100,7 +112,6 @@ function EntrarSalaContent() {
 
         {!code ? (
           <div className="py-16">
-
             <div className="text-6xl">
               🎟️
             </div>
@@ -121,11 +132,9 @@ function EntrarSalaContent() {
             >
               VOLTAR AO INÍCIO
             </button>
-
           </div>
         ) : (
           <div className="py-8">
-
             <div className="text-6xl">
               🎟️
             </div>
@@ -144,7 +153,6 @@ function EntrarSalaContent() {
             </p>
 
             <div className="mt-8 grid gap-3">
-
               <button
                 type="button"
                 onClick={enterWithGoogle}
@@ -164,11 +172,9 @@ function EntrarSalaContent() {
               >
                 ENTRAR COMO CONVIDADO
               </button>
-
             </div>
 
             <div className="mt-8 rounded-2xl border border-white/5 bg-white/[.03] p-4">
-
               <div className="font-pixel text-[9px] text-slate-500">
                 CÓDIGO DO CONVITE
               </div>
@@ -176,7 +182,6 @@ function EntrarSalaContent() {
               <div className="mt-2 font-pixel text-lg tracking-[0.2em] text-white">
                 {code}
               </div>
-
             </div>
 
             {error && (
@@ -184,10 +189,8 @@ function EntrarSalaContent() {
                 {error}
               </div>
             )}
-
           </div>
         )}
-
       </section>
     </main>
   );
