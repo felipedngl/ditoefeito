@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import {
   ensureAnonymousUser,
+  getUserProfile,
   signInWithGoogle,
 } from "@/lib/auth";
 
