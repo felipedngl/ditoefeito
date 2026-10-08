@@ -36,6 +36,11 @@ import {
 } from "@/lib/auth";
 
 import {
+  getPreferredUserSpace,
+  getUserSpaces,
+} from "@/lib/userSpaces";
+
+import {
   getSavedRating,
   saveRating,
 } from "@/lib/ratings";
@@ -126,22 +131,42 @@ export default function FilmesPage() {
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+useEffect(() => {
+  if (!authUid) {
+    setActiveSpace(null);
+    return;
+  }
 
-    const storedSpace = sessionStorage.getItem(
-      "ditoefeito_active_space"
-    );
+  let cancelled = false;
 
-    if (!storedSpace) return;
-
+  async function loadUserSpace() {
     try {
-      const parsed = JSON.parse(storedSpace) as Space;
-      setActiveSpace(parsed);
-    } catch {
-      sessionStorage.removeItem("ditoefeito_active_space");
+      const spaces = await getUserSpaces(authUid);
+
+      if (cancelled) return;
+
+      const preferredSpace =
+        getPreferredUserSpace(spaces);
+
+      setActiveSpace(preferredSpace);
+    } catch (error) {
+      console.error(
+        "Erro ao localizar sala do usuário:",
+        error
+      );
+
+      if (!cancelled) {
+        setActiveSpace(null);
+      }
     }
-  }, []);
+  }
+
+  loadUserSpace();
+
+  return () => {
+    cancelled = true;
+  };
+}, [authUid]);
 
   useEffect(() => {
     if (!activeSpace) {
