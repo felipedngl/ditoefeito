@@ -13,6 +13,7 @@ import {
 
 import {
   addTitleToSpace,
+  removeTitleFromSpace,
   saveSpaceRating,
   subscribeToMembers,
   subscribeToSpace,
@@ -1204,6 +1205,7 @@ function SharedSessionModal({
   currentUid,
   onClose,
   onOpenTitle,
+  onRequestRemove,
 }: {
   space: Space;
   titles: SpaceTitle[];
@@ -1212,6 +1214,7 @@ function SharedSessionModal({
   currentUid: string;
   onClose: () => void;
   onOpenTitle: (title: SpaceTitle) => void;
+  onRequestRemove: (title: SpaceTitle) => void;
 }) {
   return (
     <div
@@ -1401,6 +1404,20 @@ function SharedSessionModal({
                             ? "ALTERAR MINHA NOTA →"
                             : "DAR MINHA NOTA →"}
                         </div>
+                        {(title.addedBy === currentUid ||
+                          space.hostUid === currentUid) && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onRequestRemove(title);
+                            }}
+                            className="mt-4 flex items-center gap-2 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 font-pixel text-[8px] text-red-300 transition hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-200"
+                          >
+                            <Trash2 size={13} />
+                            REMOVER DA SESSÃO
+                          </button>
+                        )}
                       </div>
                     </div>
                   </button>
