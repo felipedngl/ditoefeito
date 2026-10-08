@@ -844,6 +844,83 @@ export function subscribeToSpaceTitles(
 }
 
 /* =========================================================
+   REMOVER TÍTULO DA SESSÃO
+   ========================================================= */
+
+export async function removeTitleFromSpace(
+  spaceId: string,
+  mediaType: "movie" | "tv",
+  mediaId: number
+): Promise<void> {
+  const titleId = spaceTitleId(
+    mediaType,
+    mediaId
+  );
+
+  const titleRef = doc(
+    db,
+    "spaces",
+    spaceId,
+    "titles",
+    titleId
+  );
+
+  const ratingsRef =
+    collection(
+      db,
+      "spaces",
+      spaceId,
+      "titles",
+      titleId,
+      "ratings"
+    );
+
+  const ratingsSnapshot =
+    await withTimeout(
+      getDocs(ratingsRef),
+      "O Firebase demorou demais para preparar a remoção."
+    );
+
+  try {
+    await withTimeout(
+      runTransaction(
+        db,
+        async (transaction) => {
+          const titleSnapshot =
+            await transaction.get(
+              titleRef
+            );
+
+          if (!titleSnapshot.exists()) {
+            return;
+          }
+
+          transaction.delete(
+            titleRef
+          );
+
+          ratingsSnapshot.docs.forEach(
+            (ratingDoc) => {
+              transaction.delete(
+                ratingDoc.ref
+              );
+            }
+          );
+        }
+      ),
+      "Não foi possível remover o título da sessão."
+    );
+  } catch (error) {
+    console.error(
+      "Erro ao remover título da sessão:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
    AVALIAÇÕES
    ========================================================= */
 
