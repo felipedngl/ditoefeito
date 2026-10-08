@@ -1307,14 +1307,17 @@ function SharedSessionModal({
                   );
 
                 return (
-                  <button
+                  <div
                     key={key}
-                    type="button"
-                    onClick={() =>
-                      onOpenTitle(title)
-                    }
-                    className="w-full rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-pink-400/40 hover:bg-white/[0.05]"
+                    className="relative rounded-3xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-pink-400/40 hover:bg-white/[0.05]"
                   >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onOpenTitle(title)
+                      }
+                      className="w-full text-left"
+                    >
                     <div className="flex gap-4">
                       <div className="h-32 w-22 w-[88px] shrink-0 overflow-hidden rounded-2xl bg-black/30">
                         {title.posterPath ? (
@@ -1421,6 +1424,7 @@ function SharedSessionModal({
                       </div>
                     </div>
                   </button>
+                  </div>
                 );
               })}
             </div>
