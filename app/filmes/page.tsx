@@ -500,20 +500,7 @@ async function handleRemoveFromSession() {
     <main className="min-h-screen bg-[#070910] text-white">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#070910]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-6">
-        <button
-          type="button"
-          onClick={() => router.push("/filmes")}
-          className="flex items-center gap-2"
-          aria-label="Voltar para o catálogo"
-        >
-          <img
-            src="/logo.png"
-            alt="Dito & Feito"
-            className="h-10 w-auto max-w-[180px] object-contain"
-          />
-        </button>
-
-          <nav className="hidden items-center gap-6 md:flex">
+      
           <button
             type="button"
             onClick={() => router.push("/filmes")}
@@ -526,7 +513,8 @@ async function handleRemoveFromSession() {
               className="h-10 w-auto max-w-[180px] object-contain"
             />
           </button>
-
+      
+          <nav className="hidden items-center gap-6 md:flex">
             <button
               type="button"
               onClick={() =>
@@ -536,7 +524,7 @@ async function handleRemoveFromSession() {
             >
               BIBLIOTECA
             </button>
-
+      
             <button
               type="button"
               onClick={() =>
@@ -546,7 +534,7 @@ async function handleRemoveFromSession() {
             >
               PÓDIO
             </button>
-
+      
             <button
               type="button"
               onClick={() => router.push("/perfil")}
