@@ -172,18 +172,6 @@ export async function signInWithGoogle(): Promise<User> {
 
   return result.user;
 }
-
-  const result = await withTimeout(
-    signInWithPopup(
-      auth,
-      googleProvider
-    ),
-    "O login com Google demorou demais."
-  );
-
-  return result.user;
-}
-
 export function subscribeToAuth(
   callback: (
     user: User | null
