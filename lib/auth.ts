@@ -1,6 +1,9 @@
 import {
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInAnonymously,
+  signInWithEmailAndPassword,
   signInWithPopup,
   User,
 } from "firebase/auth";
