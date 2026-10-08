@@ -141,7 +141,7 @@ useEffect(() => {
 
   async function loadUserSpace() {
     try {
-      const spaces = await getUserSpaces(authUid);
+      const spaces = await getUserSpaces(authUid!);
 
       if (cancelled) return;
 
