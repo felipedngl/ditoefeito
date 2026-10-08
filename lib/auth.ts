@@ -175,6 +175,51 @@ export async function signInWithGoogle(): Promise<User> {
 
   return result.user;
 }
+
+export async function signInWithEmail(
+  email: string,
+  password: string
+): Promise<User> {
+  const result = await withTimeout(
+    signInWithEmailAndPassword(
+      auth,
+      email.trim(),
+      password
+    ),
+    "O login com e-mail demorou demais."
+  );
+
+  return result.user;
+}
+
+export async function createAccountWithEmail(
+  email: string,
+  password: string
+): Promise<User> {
+  const result = await withTimeout(
+    createUserWithEmailAndPassword(
+      auth,
+      email.trim(),
+      password
+    ),
+    "A criação da conta demorou demais."
+  );
+
+  return result.user;
+}
+
+export async function resetPassword(
+  email: string
+): Promise<void> {
+  await withTimeout(
+    sendPasswordResetEmail(
+      auth,
+      email.trim()
+    ),
+    "O envio do e-mail de recuperação demorou demais."
+  );
+}
+
 export function subscribeToAuth(
   callback: (
     user: User | null
