@@ -577,6 +577,38 @@ async function handleRemoveFromSession() {
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+        <nav className="mb-5 flex gap-2 overflow-x-auto">
+          <CatalogNavButton
+            icon={<Film size={16} />}
+            label="CATÁLOGO"
+            active
+            onClick={() => router.push("/filmes")}
+          />
+        
+          <CatalogNavButton
+            icon={<BookOpen size={16} />}
+            label="BIBLIOTECA"
+            onClick={() =>
+              router.push("/filmes/biblioteca")
+            }
+          />
+        
+          <CatalogNavButton
+            icon={<Trophy size={16} />}
+            label="PÓDIO"
+            onClick={() =>
+              router.push("/filmes/podio")
+            }
+          />
+        
+          <CatalogNavButton
+            icon={<UserRound size={16} />}
+            label="PERFIL"
+            onClick={() =>
+              router.push("/perfil")
+            }
+          />
+        </nav>
         <div className="mb-8">
           <p className="font-pixel text-[9px] uppercase tracking-[0.3em] text-pink-300">
             SEU CINEMA
@@ -1613,5 +1645,33 @@ function RemoveSessionTitleModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function CatalogNavButton({
+  icon,
+  label,
+  active = false,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "flex shrink-0 items-center gap-2 rounded-xl border px-4 py-3 font-pixel text-[9px] transition",
+        active
+          ? "border-pink-400/40 bg-pink-500/10 text-pink-200"
+          : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white",
+      ].join(" ")}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
