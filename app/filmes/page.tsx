@@ -4,10 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  BookOpen,
   ChevronDown,
   Search,
   Star,
   Trash2,
+  Trophy,
+  UserRound,
+  Film,
   X,
 } from "lucide-react";
 
