@@ -97,7 +97,10 @@ export default function FilmesPage() {
 
   const [sessionOpen, setSessionOpen] = useState(false);
   const [addingTitleKey, setAddingTitleKey] = useState<string | null>(null);
-
+  
+  const [removeTarget, setRemoveTarget] = useState<SpaceTitle | null>(null);
+  const [removingTitleKey, setRemovingTitleKey] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState("");
   useEffect(() => {
     const unsubscribe = subscribeToAuth(async (user) => {
       if (!user) {
@@ -435,6 +438,50 @@ export default function FilmesPage() {
     !!activeSpace &&
     profile?.mode !== "solo";
 
+async function handleRemoveFromSession() {
+  if (!activeSpace || !authUid || !removeTarget) return;
+
+  const key =
+    `${removeTarget.mediaType}_${removeTarget.mediaId}`;
+
+  const isAllowed =
+    removeTarget.addedBy === authUid ||
+    activeSpace.hostUid === authUid;
+
+  if (!isAllowed) {
+    setRemoveError(
+      "Somente quem adicionou o título ou o anfitrião pode removê-lo."
+    );
+    return;
+  }
+
+  try {
+    setRemovingTitleKey(key);
+    setRemoveError("");
+
+    await removeTitleFromSpace(
+      activeSpace.id,
+      removeTarget.mediaType,
+      removeTarget.mediaId
+    );
+
+    setRemoveTarget(null);
+  } catch (error) {
+    console.error(
+      "Erro ao remover título da sessão:",
+      error
+    );
+
+    setRemoveError(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível remover este título da sessão."
+    );
+  } finally {
+    setRemovingTitleKey(null);
+  }
+}
+
   const pendingCount = isSharedMode
     ? spaceTitles.filter((title) => {
         const key = `${title.mediaType}_${title.mediaId}`;
@@ -730,6 +777,25 @@ export default function FilmesPage() {
             setSelectedItem(titleToMediaItem(title));
             setRatingOpen(true);
           }}
+          onRequestRemove={(title) => {
+            setRemoveError("");
+            setRemoveTarget(title);
+          }}
+        />
+      )}
+      
+      {removeTarget && activeSpace && (
+        <RemoveSessionTitleModal
+          title={removeTarget}
+          removing={!!removingTitleKey}
+          error={removeError}
+          onClose={() => {
+            if (!removingTitleKey) {
+              setRemoveTarget(null);
+              setRemoveError("");
+            }
+          }}
+          onConfirm={handleRemoveFromSession}
         />
       )}
     </main>
@@ -1429,6 +1495,117 @@ function SharedSessionModal({
               })}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RemoveSessionTitleModal({
+  title,
+  removing,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  title: SpaceTitle;
+  removing: boolean;
+  error: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+      onMouseDown={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-3xl border border-red-400/20 bg-[#0d111b] p-6 shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="font-pixel text-[9px] text-red-300">
+              SESSÃO COMPARTILHADA
+            </div>
+
+            <h2 className="mt-2 font-pixel text-base text-white">
+              REMOVER DA SESSÃO?
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={removing}
+            className="rounded-xl border border-white/10 p-2 text-slate-400 transition hover:text-white disabled:opacity-40"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-6 flex gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="h-24 w-16 shrink-0 overflow-hidden rounded-xl bg-black/30">
+            {title.posterPath ? (
+              <img
+                src={TMDB_IMAGE_BASE + title.posterPath}
+                alt={title.title}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center p-2 text-center font-pixel text-[7px] text-slate-600">
+                SEM IMAGEM
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <div className="font-pixel text-[8px] text-cyan-300">
+              {title.mediaType === "movie"
+                ? "FILME"
+                : "SÉRIE"}
+            </div>
+
+            <div className="mt-2 font-retro text-base text-white">
+              {title.title}
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-5 font-retro text-sm leading-6 text-slate-400">
+          Este título será removido da sessão para todos os participantes,
+          junto com as notas dadas dentro desta sessão.
+        </p>
+
+        <p className="mt-3 font-retro text-sm leading-6 text-cyan-300">
+          Sua avaliação pessoal na Biblioteca não será apagada.
+        </p>
+
+        {error && (
+          <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 p-3 font-retro text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={removing}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4 font-pixel text-[9px] text-slate-300 transition hover:bg-white/[0.08] hover:text-white disabled:opacity-40"
+          >
+            CANCELAR
+          </button>
+
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={removing}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-red-500/90 px-4 py-4 font-pixel text-[9px] text-white transition hover:bg-red-400 disabled:cursor-wait disabled:opacity-50"
+          >
+            <Trash2 size={14} />
+            {removing ? "REMOVENDO..." : "REMOVER"}
+          </button>
         </div>
       </div>
     </div>
