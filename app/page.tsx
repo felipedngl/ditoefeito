@@ -42,10 +42,11 @@ export default function HomePage() {
     try {
       setLoading(true);
       setError("");
-
-      await signInWithGoogle();
-
-      router.push("/configurar");
+  
+      const user = await signInWithGoogle();
+      const profile = await getUserProfile(user.uid);
+  
+      router.push(profile ? "/filmes" : "/configurar");
     } catch (err) {
       console.error(err);
 
