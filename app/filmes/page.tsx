@@ -1385,7 +1385,7 @@ function SharedSessionModal({
                       className="w-full text-left"
                     >
                     <div className="flex gap-4">
-                      <div className="h-32 w-22 w-[88px] shrink-0 overflow-hidden rounded-2xl bg-black/30">
+                      <div className="h-32 w-[88px] shrink-0 overflow-hidden rounded-2xl bg-black/30">
                         {title.posterPath ? (
                           <img
                             src={`${TMDB_IMAGE_BASE}${title.posterPath}`}
