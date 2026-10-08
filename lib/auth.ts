@@ -1,5 +1,4 @@
 import {
-  linkWithPopup,
   onAuthStateChanged,
   signInAnonymously,
   signInWithPopup,
@@ -166,19 +165,13 @@ export async function ensureAnonymousUser(): Promise<User> {
 }
 
 export async function signInWithGoogle(): Promise<User> {
-  const currentUser = auth.currentUser;
+  const result = await withTimeout(
+    signInWithPopup(auth, googleProvider),
+    "O login com Google demorou demais."
+  );
 
-  if (currentUser?.isAnonymous) {
-    const result = await withTimeout(
-      linkWithPopup(
-        currentUser,
-        googleProvider
-      ),
-      "O login com Google demorou demais."
-    );
-
-    return result.user;
-  }
+  return result.user;
+}
 
   const result = await withTimeout(
     signInWithPopup(
