@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Search,
   Star,
+  Trash2,
   X,
 } from "lucide-react";
 
