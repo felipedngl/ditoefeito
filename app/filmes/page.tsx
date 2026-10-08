@@ -182,13 +182,6 @@ useEffect(() => {
         if (!space) return;
 
         setActiveSpace(space);
-
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(
-            "ditoefeito_active_space",
-            JSON.stringify(space)
-          );
-        }
       }
     );
 
