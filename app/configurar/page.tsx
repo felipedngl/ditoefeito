@@ -50,8 +50,14 @@ function ConfigurarContent() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setUsername(createUsername());
-    setAvatar(randomAvatar());
+    /*
+     * IMPORTANTE:
+     * Nome e avatar não são mais preenchidos automaticamente.
+     * O usuário precisa escolher os dois antes de continuar.
+     */
+
+    setUsername("");
+    setAvatar("");
 
     const savedCode =
       sessionStorage.getItem("ditoefeito_join_code");
@@ -82,10 +88,12 @@ function ConfigurarContent() {
 
   function sortearNome() {
     setUsername(createUsername());
+    setError("");
   }
 
   function sortearAvatar() {
     setAvatar(randomAvatar());
+    setError("");
   }
 
   function handleRoomCodeChange(
@@ -97,6 +105,8 @@ function ConfigurarContent() {
         .replace(/[^A-Z0-9]/g, "")
         .slice(0, 6)
     );
+
+    setError("");
   }
 
   async function handleContinue() {
@@ -111,9 +121,15 @@ function ConfigurarContent() {
     const cleanSpaceName =
       spaceName.trim();
 
+    /*
+     * =====================================================
+     * VALIDAÇÕES OBRIGATÓRIAS DO PERFIL
+     * =====================================================
+     */
+
     if (!cleanUsername) {
       setError(
-        "Escolha um nome para continuar."
+        "Digite seu nome de perfil para continuar."
       );
       return;
     }
@@ -125,9 +141,13 @@ function ConfigurarContent() {
       return;
     }
 
-    if (
-      mode === "solo"
-    ) {
+    /*
+     * =====================================================
+     * MODO SOZINHO
+     * =====================================================
+     */
+
+    if (mode === "solo") {
       try {
         setSaving(true);
 
@@ -177,6 +197,12 @@ function ConfigurarContent() {
       return;
     }
 
+    /*
+     * =====================================================
+     * VALIDAÇÃO DO CÓDIGO
+     * =====================================================
+     */
+
     if (
       cleanRoomCode &&
       cleanRoomCode.length !== 6
@@ -187,29 +213,23 @@ function ConfigurarContent() {
       return;
     }
 
-    if (
-      !cleanRoomCode &&
-      !cleanSpaceName
-    ) {
-      setError(
-        "Digite o nome da sala ou informe um código para entrar em uma sala existente."
-      );
-      return;
-    }
+    /*
+     * =====================================================
+     * ENTRAR EM SALA EXISTENTE
+     *
+     * Quando existe código, o nome da sala NÃO precisa
+     * ser informado pelo convidado. O nome vem da sala
+     * criada pelo anfitrião.
+     * =====================================================
+     */
 
-    try {
-      setSaving(true);
+    if (cleanRoomCode) {
+      try {
+        setSaving(true);
 
-      const user =
-        await ensureAnonymousUser();
+        const user =
+          await ensureAnonymousUser();
 
-      /*
-       * =====================================================
-       * ENTRAR EM SALA EXISTENTE
-       * =====================================================
-       */
-
-      if (cleanRoomCode) {
         const existingSpace =
           await findWaitingSpaceByCode(
             cleanRoomCode
@@ -297,13 +317,42 @@ function ConfigurarContent() {
         );
 
         return;
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível entrar na sala agora."
+        );
+      } finally {
+        setSaving(false);
       }
 
-      /*
-       * =====================================================
-       * CRIAR NOVA SALA
-       * =====================================================
-       */
+      return;
+    }
+
+    /*
+     * =====================================================
+     * CRIAR NOVA SALA
+     *
+     * Se não existe código, o usuário está criando uma
+     * nova sala. Nesse caso o nome da sala é obrigatório.
+     * =====================================================
+     */
+
+    if (!cleanSpaceName) {
+      setError(
+        "Digite o nome da sala ou grupo para continuar."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const user =
+        await ensureAnonymousUser();
 
       const profile = {
         username: cleanUsername,
@@ -363,7 +412,7 @@ function ConfigurarContent() {
       setError(
         err instanceof Error
           ? err.message
-          : "Não foi possível concluir essa etapa agora."
+          : "Não foi possível criar essa sala agora."
       );
     } finally {
       setSaving(false);
@@ -468,6 +517,9 @@ function ConfigurarContent() {
           <div className="mt-8">
             <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
               SEU NOME
+              <span className="ml-2 text-pink-400">
+                *
+              </span>
             </label>
 
             <div className="flex gap-2">
@@ -480,7 +532,7 @@ function ConfigurarContent() {
                 }
                 maxLength={30}
                 className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-lg text-white outline-none transition focus:border-cyan-400"
-                placeholder="Seu nome"
+                placeholder="Digite seu nome"
               />
 
               <button
@@ -493,6 +545,11 @@ function ConfigurarContent() {
                 SORTEAR
               </button>
             </div>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Esse será o nome que os outros
+              participantes verão na sessão.
+            </p>
           </div>
 
           {/* AVATAR */}
@@ -501,6 +558,9 @@ function ConfigurarContent() {
             <div className="mb-3 flex items-center justify-between">
               <label className="font-pixel text-[10px] text-cyan-300">
                 SEU AVATAR
+                <span className="ml-2 text-pink-400">
+                  *
+                </span>
               </label>
 
               <button
@@ -539,6 +599,11 @@ function ConfigurarContent() {
                 }
               )}
             </div>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Escolha um avatar para representar
+              você na sessão.
+            </p>
           </div>
 
           {/* NOME DA SALA */}
@@ -546,7 +611,12 @@ function ConfigurarContent() {
           {mode !== "solo" && (
             <div className="mt-8">
               <label className="mb-3 block font-pixel text-[10px] text-cyan-300">
-                NOME DA SALA
+                NOME DA SALA / GRUPO
+                {!roomCode.trim() && (
+                  <span className="ml-2 text-pink-400">
+                    *
+                  </span>
+                )}
               </label>
 
               <input
@@ -557,7 +627,10 @@ function ConfigurarContent() {
                   )
                 }
                 maxLength={40}
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-lg text-white outline-none transition focus:border-cyan-400"
+                disabled={Boolean(
+                  roomCode.trim()
+                )}
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-4 text-lg text-white outline-none transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder={
                   mode === "couple"
                     ? "Ex.: Sessão da Sexta"
@@ -566,9 +639,9 @@ function ConfigurarContent() {
               />
 
               <p className="mt-2 text-sm text-slate-500">
-                Se você estiver criando
-                uma sala, dê um nome para
-                ela.
+                {roomCode.trim()
+                  ? "Você está entrando em uma sala existente. O nome dela já pertence ao anfitrião."
+                  : "Dê um nome para sua sessão antes de compartilhar o convite."}
               </p>
 
               {/* CÓDIGO DA SALA */}
@@ -597,6 +670,8 @@ function ConfigurarContent() {
                   Se você recebeu um código,
                   coloque aqui para entrar
                   na sala de outra pessoa.
+                  Se não recebeu, deixe vazio
+                  para criar uma nova sala.
                 </p>
               </div>
             </div>
