@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -9,6 +10,7 @@ import {
   serverTimestamp,
   setDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 
 import { db } from "./firebase";
@@ -140,6 +142,67 @@ async function generateUniqueCode(): Promise<string> {
   throw new Error(
     "Não foi possível gerar um código de sala."
   );
+}
+
+/* =========================================================
+   EXCLUIR SALA INTEIRA — SOMENTE ANFITRIÃO
+   ========================================================= */
+
+export async function deleteSpace(
+  spaceId: string,
+  currentUid: string
+): Promise<void> {
+  const spaceRef = doc(db, "spaces", spaceId);
+  const spaceSnapshot = await getDoc(spaceRef);
+
+  if (!spaceSnapshot.exists()) {
+    throw new Error("Esta sala não existe mais.");
+  }
+
+  if (spaceSnapshot.data().hostUid !== currentUid) {
+    throw new Error("Somente o anfitrião pode excluir esta sala.");
+  }
+
+  const [members, requests, titles] = await Promise.all([
+    getDocs(collection(db, "spaces", spaceId, "members")),
+    getDocs(collection(db, "spaces", spaceId, "joinRequests")),
+    getDocs(collection(db, "spaces", spaceId, "titles")),
+  ]);
+
+  const refs = [];
+
+  for (const title of titles.docs) {
+    const ratings = await getDocs(
+      collection(
+        db,
+        "spaces",
+        spaceId,
+        "titles",
+        title.id,
+        "ratings"
+      )
+    );
+
+    ratings.docs.forEach((rating) => refs.push(rating.ref));
+    refs.push(title.ref);
+  }
+
+  members.docs.forEach((member) => refs.push(member.ref));
+  requests.docs.forEach((request) => refs.push(request.ref));
+
+  // A sala principal é excluída por último.
+  refs.push(spaceRef);
+
+  // O Firestore aceita até 500 operações por lote.
+  for (let i = 0; i < refs.length; i += 450) {
+    const batch = writeBatch(db);
+
+    refs.slice(i, i + 450).forEach((ref) => {
+      batch.delete(ref);
+    });
+
+    await batch.commit();
+  }
 }
 
 /* =========================================================
