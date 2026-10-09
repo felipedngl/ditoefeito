@@ -86,6 +86,8 @@ export default function FilmesPage() {
   const [authUid, setAuthUid] = useState<string | null>(null);
 
   const [activeSpace, setActiveSpace] = useState<Space | null>(null);
+  const [userSpaces, setUserSpaces] = useState<Space[]>([]);
+  const [spacesLoading, setSpacesLoading] = useState(true);
   const [spaceMembers, setSpaceMembers] = useState<SpaceMember[]>([]);
   const [spaceTitles, setSpaceTitles] = useState<SpaceTitle[]>([]);
   const [spaceRatings, setSpaceRatings] = useState<
@@ -134,8 +136,49 @@ export default function FilmesPage() {
 useEffect(() => {
   if (!authUid) {
     setActiveSpace(null);
+    setUserSpaces([]);
+    setSpacesLoading(false);
     return;
   }
+
+  let cancelled = false;
+
+  async function loadUserSpace() {
+    try {
+      setSpacesLoading(true);
+
+      const spaces = await getUserSpaces(authUid!);
+
+      if (cancelled) return;
+
+      setUserSpaces(spaces);
+
+      const preferredSpace = getPreferredUserSpace(spaces);
+
+      setActiveSpace(preferredSpace);
+    } catch (error) {
+      console.error(
+        "Erro ao localizar sala do usuário:",
+        error
+      );
+
+        if (!cancelled) {
+          setUserSpaces([]);
+          setActiveSpace(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setSpacesLoading(false);
+        }
+      }
+    }
+  
+    loadUserSpace();
+  
+    return () => {
+      cancelled = true;
+    };
+  }, [authUid]);
 
   let cancelled = false;
 
@@ -456,9 +499,7 @@ useEffect(() => {
     }
   }
 
-  const isSharedMode =
-    !!activeSpace &&
-    profile?.mode !== "solo";
+  const isSharedMode = !!activeSpace;
 
 async function handleRemoveFromSession() {
   if (!activeSpace || !authUid || !removeTarget) return;
@@ -640,6 +681,119 @@ async function handleRemoveFromSession() {
           </p>
         </div>
 
+<section className="mb-8">
+  <div className="mb-4">
+    <p className="font-pixel text-[9px] text-cyan-300">
+      ESCOLHA ONDE VOCÊ QUER ASSISTIR
+    </p>
+
+    <h2 className="mt-2 font-pixel text-base text-white">
+      SUAS SESSÕES
+    </h2>
+
+    <p className="mt-2 font-retro text-sm text-slate-400">
+      Escolha sua biblioteca pessoal ou um dos seus grupos.
+    </p>
+  </div>
+
+  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <button
+      type="button"
+      onClick={() => {
+        setActiveSpace(null);
+        setSessionOpen(false);
+      }}
+      className={[
+        "rounded-2xl border p-4 text-left transition",
+        !activeSpace
+          ? "border-cyan-300/60 bg-cyan-400/10"
+          : "border-white/10 bg-white/[0.03] hover:border-cyan-300/40",
+      ].join(" ")}
+    >
+      <div className="text-xl">👤</div>
+
+      <div className="mt-3 font-pixel text-[10px] text-white">
+        SOZINHO
+      </div>
+
+      <div className="mt-2 font-retro text-sm text-slate-400">
+        Sua biblioteca pessoal
+      </div>
+
+      {!activeSpace && (
+        <div className="mt-3 font-pixel text-[8px] text-cyan-300">
+          SELECIONADO
+        </div>
+      )}
+    </button>
+
+    {spacesLoading ? (
+      <div className="rounded-2xl border border-white/10 p-4 font-retro text-sm text-slate-400">
+        Carregando seus grupos...
+      </div>
+    ) : (
+      userSpaces.map((space) => {
+        const selected = activeSpace?.id === space.id;
+
+        return (
+          <button
+            key={space.id}
+            type="button"
+            onClick={() => {
+              setActiveSpace(space);
+              setSessionOpen(false);
+            }}
+            className={[
+              "rounded-2xl border p-4 text-left transition",
+              selected
+                ? "border-pink-400/60 bg-pink-500/10"
+                : "border-white/10 bg-white/[0.03] hover:border-pink-400/40",
+            ].join(" ")}
+          >
+            <div className="text-xl">
+              {space.mode === "couple" ? "💞" : "👾"}
+            </div>
+
+            <div className="mt-3 font-pixel text-[10px] text-white">
+              {space.name}
+            </div>
+
+            <div className="mt-2 font-retro text-sm text-slate-400">
+              {space.mode === "couple" ? "CASALZINHO" : "GRUPINHO"}
+              {" · "}
+              {space.status === "active"
+                ? "ATIVA"
+                : space.status === "waiting"
+                  ? "AGUARDANDO"
+                  : "BLOQUEADA"}
+            </div>
+
+            {selected && (
+              <div className="mt-3 font-pixel text-[8px] text-pink-300">
+                SELECIONADO
+              </div>
+            )}
+          </button>
+        );
+      })
+    )}
+  </div>
+
+  {!spacesLoading && userSpaces.length === 0 && (
+    <p className="mt-3 font-retro text-sm text-slate-500">
+      Você ainda não participa de grupos. Você pode continuar no modo SOZINHO ou criar uma sessão.
+    </p>
+  )}
+
+  <button
+    type="button"
+    onClick={() => router.push("/configurar")}
+    className="mt-4 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 font-pixel text-[9px] text-pink-200 transition hover:border-pink-300"
+  >
+    + CRIAR GRUPO
+  </button>
+</section>
+        
         {isSharedMode && (
           <section className="mb-8">
             <button
