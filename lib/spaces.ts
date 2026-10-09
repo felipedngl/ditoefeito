@@ -30,6 +30,14 @@ export type SpaceMember = {
   joinedAt?: unknown;
 };
 
+export type SpaceDeparture = {
+  id: string;
+  uid: string;
+  username: string;
+  avatar: string;
+  leftAt?: unknown;
+};
+
 export type SpaceJoinRequest = {
   uid: string;
   username: string;
@@ -163,11 +171,13 @@ export async function deleteSpace(
     throw new Error("Somente o anfitrião pode excluir esta sala.");
   }
 
-  const [members, requests, titles] = await Promise.all([
-    getDocs(collection(db, "spaces", spaceId, "members")),
-    getDocs(collection(db, "spaces", spaceId, "joinRequests")),
-    getDocs(collection(db, "spaces", spaceId, "titles")),
-  ]);
+  const [members, requests, titles, departures] =
+    await Promise.all([
+      getDocs(collection(db, "spaces", spaceId, "members")),
+      getDocs(collection(db, "spaces", spaceId, "joinRequests")),
+      getDocs(collection(db, "spaces", spaceId, "titles")),
+      getDocs(collection(db, "spaces", spaceId, "departures")),
+    ]);
 
   const refs = [];
 
@@ -189,11 +199,10 @@ export async function deleteSpace(
 
   members.docs.forEach((member) => refs.push(member.ref));
   requests.docs.forEach((request) => refs.push(request.ref));
+  departures.docs.forEach((departure) => refs.push(departure.ref));
 
-  // A sala principal é excluída por último.
   refs.push(spaceRef);
 
-  // O Firestore aceita até 500 operações por lote.
   for (let i = 0; i < refs.length; i += 450) {
     const batch = writeBatch(db);
 
@@ -203,6 +212,136 @@ export async function deleteSpace(
 
     await batch.commit();
   }
+}
+
+/* =========================================================
+   SAIR DO GRUPO — SOMENTE PARTICIPANTE
+   ========================================================= */
+
+export async function leaveSpace(
+  spaceId: string,
+  currentUid: string,
+  username: string,
+  avatar: string
+): Promise<void> {
+  const spaceRef = doc(db, "spaces", spaceId);
+  const memberRef = doc(
+    db,
+    "spaces",
+    spaceId,
+    "members",
+    currentUid
+  );
+
+  const [spaceSnapshot, memberSnapshot] = await Promise.all([
+    getDoc(spaceRef),
+    getDoc(memberRef),
+  ]);
+
+  if (!spaceSnapshot.exists()) {
+    throw new Error("Este grupo não existe mais.");
+  }
+
+  if (!memberSnapshot.exists()) {
+    throw new Error("Você não consta mais como participante deste grupo.");
+  }
+
+  if (spaceSnapshot.data().hostUid === currentUid) {
+    throw new Error(
+      "Você é o anfitrião. Para encerrar o grupo, use EXCLUIR."
+    );
+  }
+
+  const departureRef = doc(
+    collection(db, "spaces", spaceId, "departures")
+  );
+
+  const batch = writeBatch(db);
+
+  batch.set(departureRef, {
+    uid: currentUid,
+    username,
+    avatar,
+    leftAt: serverTimestamp(),
+  });
+
+  batch.delete(memberRef);
+
+  await batch.commit();
+}
+
+/* =========================================================
+   OBSERVAR AVISOS DE SAÍDA
+   ========================================================= */
+
+export function subscribeToSpaceDepartures(
+  spaceId: string,
+  callback: (departures: SpaceDeparture[]) => void
+): () => void {
+  const departuresRef = collection(
+    db,
+    "spaces",
+    spaceId,
+    "departures"
+  );
+
+  return onSnapshot(
+    departuresRef,
+    (snapshot) => {
+      const departures = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...(item.data() as Omit<SpaceDeparture, "id">),
+      }));
+
+      departures.sort((a, b) => {
+        const timeA =
+          typeof (a.leftAt as { toMillis?: () => number } | undefined)
+            ?.toMillis === "function"
+            ? (a.leftAt as { toMillis: () => number }).toMillis()
+            : 0;
+
+        const timeB =
+          typeof (b.leftAt as { toMillis?: () => number } | undefined)
+            ?.toMillis === "function"
+            ? (b.leftAt as { toMillis: () => number }).toMillis()
+            : 0;
+
+        return timeB - timeA;
+      });
+
+      callback(departures);
+    },
+    (error) => {
+      console.error("Erro ao observar saídas do grupo:", error);
+      callback([]);
+    }
+  );
+}
+
+/* =========================================================
+   ANFITRIÃO DISPENSA AVISO DE SAÍDA
+   ========================================================= */
+
+export async function dismissSpaceDeparture(
+  spaceId: string,
+  departureId: string,
+  currentUid: string
+): Promise<void> {
+  const spaceSnapshot = await getDoc(
+    doc(db, "spaces", spaceId)
+  );
+
+  if (!spaceSnapshot.exists()) {
+    throw new Error("Este grupo não existe mais.");
+  }
+
+  if (spaceSnapshot.data().hostUid !== currentUid) {
+    throw new Error("Somente o anfitrião pode dispensar este aviso.");
+  }
+
+  await deleteDoc(
+    doc(db, "spaces", spaceId, "departures", departureId)
+  );
 }
 
 /* =========================================================
