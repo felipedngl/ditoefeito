@@ -214,19 +214,10 @@ const [leavingSpaceId, setLeavingSpaceId] = useState<string | null>(null);
       setSpaceMembers
     );
 
-
-const unsubscribeTitles = subscribeToSpaceTitles(
-  activeSpace.id,
-  (titles) => {
-    console.log("[DIAGNÓSTICO BOBOKAS]", {
-      sessionId: activeSpace.id,
-      totalTitles: titles.length,
-      titles: titles,
-    });
-
-    setSpaceTitles(titles);
-  }
-);
+    const unsubscribeTitles = subscribeToSpaceTitles(
+      activeSpace.id,
+      setSpaceTitles
+    );
 
     return () => {
       unsubscribeSpace();
