@@ -515,7 +515,7 @@ async function handleDeleteSpace(space: Space) {
   }
 }
 
-async function handleRemoveFromSession() {
+  async function handleRemoveFromSession() {
   if (!activeSpace || !authUid || !removeTarget) return;
 
   const key =
@@ -680,6 +680,7 @@ async function handleRemoveFromSession() {
             }
           />
         </nav>
+
         <div className="mb-8">
           <p className="font-pixel text-[9px] uppercase tracking-[0.3em] text-pink-300">
             SEU CINEMA
@@ -695,118 +696,141 @@ async function handleRemoveFromSession() {
           </p>
         </div>
 
-<section className="mb-8">
-  <div className="mb-4">
-    <p className="font-pixel text-[9px] text-cyan-300">
-      ESCOLHA ONDE VOCÊ QUER ASSISTIR
-    </p>
+        <section className="mb-8">
+          <div className="mb-4">
+            <p className="font-pixel text-[9px] text-cyan-300">
+              ESCOLHA ONDE VOCÊ QUER ASSISTIR
+            </p>
 
-    <h2 className="mt-2 font-pixel text-base text-white">
-      SUAS SESSÕES
-    </h2>
+            <h2 className="mt-2 font-pixel text-base text-white">
+              SUAS SESSÕES
+            </h2>
 
-    <p className="mt-2 font-retro text-sm text-slate-400">
-      Escolha sua biblioteca pessoal ou um dos seus grupos.
-    </p>
-  </div>
+            <p className="mt-2 font-retro text-sm text-slate-400">
+              Escolha sua biblioteca pessoal ou um dos seus grupos.
+            </p>
+          </div>
 
-  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    <button
-      type="button"
-      onClick={() => {
-        setActiveSpace(null);
-        setSessionOpen(false);
-      }}
-      className={[
-        "rounded-2xl border p-4 text-left transition",
-        !activeSpace
-          ? "border-cyan-300/60 bg-cyan-400/10"
-          : "border-white/10 bg-white/[0.03] hover:border-cyan-300/40",
-      ].join(" ")}
-    >
-      <div className="text-xl">👤</div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSpace(null);
+                setSessionOpen(false);
+              }}
+              className={[
+                "rounded-2xl border p-4 text-left transition",
+                !activeSpace
+                  ? "border-cyan-300/60 bg-cyan-400/10"
+                  : "border-white/10 bg-white/[0.03] hover:border-cyan-300/40",
+              ].join(" ")}
+            >
+              <div className="text-xl">👤</div>
 
-      <div className="mt-3 font-pixel text-[10px] text-white">
-        SOZINHO
-      </div>
-
-      <div className="mt-2 font-retro text-sm text-slate-400">
-        Sua biblioteca pessoal
-      </div>
-
-      {!activeSpace && (
-        <div className="mt-3 font-pixel text-[8px] text-cyan-300">
-          SELECIONADO
-        </div>
-      )}
-    </button>
-
-    {spacesLoading ? (
-      <div className="rounded-2xl border border-white/10 p-4 font-retro text-sm text-slate-400">
-        Carregando seus grupos...
-      </div>
-    ) : (
-      userSpaces.map((space) => {
-        const selected = activeSpace?.id === space.id;
-
-        return (
-          <button
-            key={space.id}
-            type="button"
-            onClick={() => {
-              setActiveSpace(space);
-              setSessionOpen(false);
-            }}
-            className={[
-              "rounded-2xl border p-4 text-left transition",
-              selected
-                ? "border-pink-400/60 bg-pink-500/10"
-                : "border-white/10 bg-white/[0.03] hover:border-pink-400/40",
-            ].join(" ")}
-          >
-            <div className="text-xl">
-              {space.mode === "couple" ? "💞" : "👾"}
-            </div>
-
-            <div className="mt-3 font-pixel text-[10px] text-white">
-              {space.name}
-            </div>
-
-            <div className="mt-2 font-retro text-sm text-slate-400">
-              {space.mode === "couple" ? "CASALZINHO" : "GRUPINHO"}
-              {" · "}
-              {space.status === "active"
-                ? "ATIVA"
-                : space.status === "waiting"
-                  ? "AGUARDANDO"
-                  : "BLOQUEADA"}
-            </div>
-
-            {selected && (
-              <div className="mt-3 font-pixel text-[8px] text-pink-300">
-                SELECIONADO
+              <div className="mt-3 font-pixel text-[10px] text-white">
+                SOZINHO
               </div>
+
+              <div className="mt-2 font-retro text-sm text-slate-400">
+                Sua biblioteca pessoal
+              </div>
+
+              {!activeSpace && (
+                <div className="mt-3 font-pixel text-[8px] text-cyan-300">
+                  SELECIONADO
+                </div>
+              )}
+            </button>
+
+            {spacesLoading ? (
+              <div className="rounded-2xl border border-white/10 p-4 font-retro text-sm text-slate-400">
+                Carregando seus grupos...
+              </div>
+            ) : (
+              userSpaces.map((space) => {
+                const selected = activeSpace?.id === space.id;
+
+                return (
+                  <div
+                    key={space.id}
+                    className={[
+                      "rounded-2xl border p-4 transition",
+                      selected
+                        ? "border-pink-400/60 bg-pink-500/10"
+                        : "border-white/10 bg-white/[0.03] hover:border-pink-400/40",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveSpace(space);
+                          setSessionOpen(false);
+                        }}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="text-xl">
+                          {space.mode === "couple" ? "💞" : "👾"}
+                        </div>
+
+                        <div className="mt-3 font-pixel text-[10px] text-white">
+                          {space.name}
+                        </div>
+
+                        <div className="mt-2 font-retro text-sm text-slate-400">
+                          {space.mode === "couple" ? "CASALZINHO" : "GRUPINHO"}
+                          {" · "}
+                          {space.status === "active"
+                            ? "ATIVA"
+                            : space.status === "waiting"
+                              ? "AGUARDANDO"
+                              : "BLOQUEADA"}
+                        </div>
+
+                        {selected && (
+                          <div className="mt-3 font-pixel text-[8px] text-pink-300">
+                            SELECIONADO
+                          </div>
+                        )}
+                      </button>
+
+                      {space.hostUid === authUid && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSpace(space)}
+                          disabled={deletingSpaceId !== null}
+                          aria-label={`Excluir grupo ${space.name}`}
+                          className="shrink-0 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 font-pixel text-[8px] text-red-300 transition hover:bg-red-500/20 disabled:cursor-wait disabled:opacity-50"
+                        >
+                          <span className="flex items-center gap-1">
+                            <Trash2 size={13} />
+                            {deletingSpaceId === space.id
+                              ? "EXCLUINDO..."
+                              : "EXCLUIR"}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
+          </div>
+
+          {!spacesLoading && userSpaces.length === 0 && (
+            <p className="mt-3 font-retro text-sm text-slate-500">
+              Você ainda não participa de grupos. Você pode continuar no modo SOZINHO ou criar uma sessão.
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => router.push("/configurar")}
+            className="mt-4 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 font-pixel text-[9px] text-pink-200 transition hover:border-pink-300"
+          >
+            + CRIAR GRUPO
           </button>
-        );
-      })
-    )}
-  </div>
-
-  {!spacesLoading && userSpaces.length === 0 && (
-    <p className="mt-3 font-retro text-sm text-slate-500">
-      Você ainda não participa de grupos. Você pode continuar no modo SOZINHO ou criar uma sessão.
-    </p>
-  )}
-
-  <button
-    type="button"
-    onClick={() => router.push("/configurar")}
-    className="mt-4 rounded-xl border border-pink-400/30 bg-pink-500/10 px-4 py-3 font-pixel text-[9px] text-pink-200 transition hover:border-pink-300"
-  >
-    + CRIAR GRUPO
-  </button>
-</section>
+        </section>
         
         {isSharedMode && (
           <section className="mb-8">
