@@ -24,6 +24,7 @@ import {
 } from "@/lib/ratings";
 
 import {
+  getUserSpaces,
   subscribeToMembers,
   subscribeToSpace,
   subscribeToSpaceRatings,
@@ -45,6 +46,9 @@ export default function PodioPage() {
 
   const [space, setSpace] =
     useState<Space | null>(null);
+
+  const [userSpaces, setUserSpaces] =
+  useState<Space[]>([]);
 
   const [members, setMembers] =
     useState<SpaceMember[]>([]);
@@ -85,26 +89,12 @@ export default function PodioPage() {
 
           setRatings(savedRatings);
 
-          if (userProfile.mode !== "solo") {
-            const raw =
-              sessionStorage.getItem(
-                "ditoefeito_space"
-              );
-
-            if (raw) {
-              try {
-                const parsed =
-                  JSON.parse(raw) as Space;
-
-                if (parsed?.id) {
-                  setSpace(parsed);
-                  setSpaceLoading(true);
-                }
-              } catch (error) {
-                console.error(error);
-              }
-            }
-          }
+          const joinedSpaces =
+            await getUserSpaces(user.uid);
+          
+          setUserSpaces(joinedSpaces);
+          setSpace(null);
+          
         } catch (error) {
           console.error(error);
         } finally {
@@ -116,46 +106,44 @@ export default function PodioPage() {
     return () => unsubscribe();
   }, [router]);
 
-  useEffect(() => {
-    if (!space) {
-      return;
-    }
+useEffect(() => {
+  if (!space) {
+    setMembers([]);
+    setTitles([]);
+    setSpaceRatings({});
+    setSpaceLoading(false);
+    return;
+  }
 
-    const unsubscribeSpace =
-      subscribeToSpace(
-        space.id,
-        (nextSpace) => {
-          if (!nextSpace) return;
+  const unsubscribeSpace =
+    subscribeToSpace(
+      space.id,
+      (nextSpace) => {
+        if (!nextSpace) return;
 
-          setSpace(nextSpace);
+        setSpace(nextSpace);
+        setSpaceLoading(false);
+      }
+    );
 
-          sessionStorage.setItem(
-            "ditoefeito_space",
-            JSON.stringify(nextSpace)
-          );
+  const unsubscribeMembers =
+    subscribeToMembers(
+      space.id,
+      setMembers
+    );
 
-          setSpaceLoading(false);
-        }
-      );
+  const unsubscribeTitles =
+    subscribeToSpaceTitles(
+      space.id,
+      setTitles
+    );
 
-    const unsubscribeMembers =
-      subscribeToMembers(
-        space.id,
-        setMembers
-      );
-
-    const unsubscribeTitles =
-      subscribeToSpaceTitles(
-        space.id,
-        setTitles
-      );
-
-    return () => {
-      unsubscribeSpace();
-      unsubscribeMembers();
-      unsubscribeTitles();
-    };
-  }, [space?.id]);
+  return () => {
+    unsubscribeSpace();
+    unsubscribeMembers();
+    unsubscribeTitles();
+  };
+}, [space?.id]);
 
   useEffect(() => {
     if (!space || !titles.length) {
@@ -253,9 +241,20 @@ export default function PodioPage() {
     return null;
   }
 
-  const sharedMode =
-    profile.mode !== "solo" &&
-    !!space;
+const sharedMode = !!space;
+
+function selectPersonalPodium() {
+  setSpace(null);
+  setSpaceLoading(false);
+}
+
+function selectGroupPodium(selectedSpace: Space) {
+  setMembers([]);
+  setTitles([]);
+  setSpaceRatings({});
+  setSpaceLoading(true);
+  setSpace(selectedSpace);
+}
 
   return (
     <main className="retro-grid min-h-screen text-white">
@@ -344,6 +343,49 @@ export default function PodioPage() {
           />
         </nav>
 
+<div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.025] p-3">
+  <p className="px-2 pb-3 font-pixel text-[8px] text-slate-500">
+    ESCOLHA SEU PÓDIO
+  </p>
+
+  <div className="flex flex-wrap gap-2">
+    <button
+      type="button"
+      onClick={selectPersonalPodium}
+      className={[
+        "rounded-xl border px-4 py-3 font-pixel text-[8px] transition",
+        !sharedMode
+          ? "border-pink-400/40 bg-pink-500/10 text-pink-200"
+          : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white",
+      ].join(" ")}
+    >
+      MEU PÓDIO
+    </button>
+
+    {userSpaces.map((userSpace) => (
+      <button
+        key={userSpace.id}
+        type="button"
+        onClick={() => selectGroupPodium(userSpace)}
+        className={[
+          "rounded-xl border px-4 py-3 font-pixel text-[8px] transition",
+          space?.id === userSpace.id
+            ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-200"
+            : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white",
+        ].join(" ")}
+      >
+        {userSpace.name}
+      </button>
+    ))}
+  </div>
+
+  {userSpaces.length === 0 && (
+    <p className="px-2 pt-3 font-retro text-sm text-slate-500">
+      Você ainda não participa de grupos. Quando entrar em um, ele aparecerá aqui.
+    </p>
+  )}
+</div>
+        
         <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
           <div>
             <p className="font-pixel text-[9px] text-yellow-300">
