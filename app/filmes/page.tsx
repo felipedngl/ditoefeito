@@ -88,6 +88,7 @@ export default function FilmesPage() {
   const [activeSpace, setActiveSpace] = useState<Space | null>(null);
   const [userSpaces, setUserSpaces] = useState<Space[]>([]);
   const [spacesLoading, setSpacesLoading] = useState(true);
+
   const [spaceMembers, setSpaceMembers] = useState<SpaceMember[]>([]);
   const [spaceTitles, setSpaceTitles] = useState<SpaceTitle[]>([]);
   const [spaceRatings, setSpaceRatings] = useState<
@@ -108,10 +109,12 @@ export default function FilmesPage() {
 
   const [sessionOpen, setSessionOpen] = useState(false);
   const [addingTitleKey, setAddingTitleKey] = useState<string | null>(null);
-  
+
   const [removeTarget, setRemoveTarget] = useState<SpaceTitle | null>(null);
   const [removingTitleKey, setRemovingTitleKey] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState("");
+
+  // Acompanha o usuário autenticado.
   useEffect(() => {
     const unsubscribe = subscribeToAuth(async (user) => {
       if (!user) {
@@ -133,34 +136,31 @@ export default function FilmesPage() {
     return unsubscribe;
   }, []);
 
-useEffect(() => {
-  if (!authUid) {
-    setActiveSpace(null);
-    setUserSpaces([]);
-    setSpacesLoading(false);
-    return;
-  }
+  // Carrega todas as salas vinculadas à conta.
+  useEffect(() => {
+    if (!authUid) {
+      setActiveSpace(null);
+      setUserSpaces([]);
+      setSpacesLoading(false);
+      return;
+    }
 
-  let cancelled = false;
+    let cancelled = false;
 
-  async function loadUserSpace() {
-    try {
-      setSpacesLoading(true);
+    async function loadUserSpace() {
+      try {
+        setSpacesLoading(true);
 
-      const spaces = await getUserSpaces(authUid!);
+        const spaces = await getUserSpaces(authUid!);
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      setUserSpaces(spaces);
+        setUserSpaces(spaces);
 
-      const preferredSpace = getPreferredUserSpace(spaces);
-
-      setActiveSpace(preferredSpace);
-    } catch (error) {
-      console.error(
-        "Erro ao localizar sala do usuário:",
-        error
-      );
+        const preferredSpace = getPreferredUserSpace(spaces);
+        setActiveSpace(preferredSpace);
+      } catch (error) {
+        console.error("Erro ao localizar sala do usuário:", error);
 
         if (!cancelled) {
           setUserSpaces([]);
@@ -172,45 +172,15 @@ useEffect(() => {
         }
       }
     }
-  
+
     loadUserSpace();
-  
+
     return () => {
       cancelled = true;
     };
   }, [authUid]);
 
-  let cancelled = false;
-
-  async function loadUserSpace() {
-    try {
-      const spaces = await getUserSpaces(authUid!);
-
-      if (cancelled) return;
-
-      const preferredSpace =
-        getPreferredUserSpace(spaces);
-
-      setActiveSpace(preferredSpace);
-    } catch (error) {
-      console.error(
-        "Erro ao localizar sala do usuário:",
-        error
-      );
-
-      if (!cancelled) {
-        setActiveSpace(null);
-      }
-    }
-  }
-
-  loadUserSpace();
-
-  return () => {
-    cancelled = true;
-  };
-}, [authUid]);
-
+  // Acompanha em tempo real a sala selecionada.
   useEffect(() => {
     if (!activeSpace) {
       setSpaceMembers([]);
@@ -245,6 +215,7 @@ useEffect(() => {
     };
   }, [activeSpace?.id]);
 
+  // Acompanha as avaliações dos títulos da sala.
   useEffect(() => {
     if (!activeSpace || spaceTitles.length === 0) {
       setSpaceRatings({});
@@ -272,8 +243,10 @@ useEffect(() => {
     };
   }, [activeSpace?.id, spaceTitles]);
 
+  // Carrega os títulos populares.
   useEffect(() => {
     async function loadPopular() {
+    
       try {
         setPopularLoading(true);
 
