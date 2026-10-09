@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   BookOpen,
   ChevronDown,
+  LogOut,
   Search,
   Star,
   Trash2,
@@ -18,13 +19,17 @@ import {
 import {
   addTitleToSpace,
   deleteSpace,
+  dismissSpaceDeparture,
+  leaveSpace,
   removeTitleFromSpace,
   saveSpaceRating,
   subscribeToMembers,
   subscribeToSpace,
+  subscribeToSpaceDepartures,
   subscribeToSpaceRatings,
   subscribeToSpaceTitles,
   type Space,
+  type SpaceDeparture,
   type SpaceMember,
   type SpaceRating,
   type SpaceTitle,
@@ -88,6 +93,11 @@ export default function FilmesPage() {
 
   const [activeSpace, setActiveSpace] = useState<Space | null>(null);
   const [userSpaces, setUserSpaces] = useState<Space[]>([]);
+  const [spaceDepartures, setSpaceDepartures] = useState<
+  Record<string, SpaceDeparture | null>
+>({});
+
+const [leavingSpaceId, setLeavingSpaceId] = useState<string | null>(null);
   const [spacesLoading, setSpacesLoading] = useState(true);
 
   const [spaceMembers, setSpaceMembers] = useState<SpaceMember[]>([]);
@@ -215,6 +225,27 @@ export default function FilmesPage() {
       unsubscribeTitles();
     };
   }, [activeSpace?.id]);
+
+  // Acompanha os avisos de saída de todos os grupos do usuário.
+  useEffect(() => {
+    if (userSpaces.length === 0) {
+      setSpaceDepartures({});
+      return;
+    }
+
+    const unsubscribers = userSpaces.map((space) =>
+      subscribeToSpaceDepartures(space.id, (departures) => {
+        setSpaceDepartures((current) => ({
+          ...current,
+          [space.id]: departures[0] ?? null,
+        }));
+      })
+    );
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [userSpaces]);
 
   // Acompanha as avaliações dos títulos da sala.
   useEffect(() => {
@@ -515,6 +546,77 @@ async function handleDeleteSpace(space: Space) {
   }
 }
 
+
+  async function handleLeaveSpace(space: Space) {
+    if (!authUid || leavingSpaceId || deletingSpaceId) return;
+
+    const confirmed = window.confirm(
+      `Deseja sair do grupo "${space.name}"? O grupo continuará existindo para os outros participantes.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLeavingSpaceId(space.id);
+
+      await leaveSpace(
+        space.id,
+        authUid,
+        profile?.username || "Participante",
+        profile?.avatar || "👤"
+      );
+
+      setUserSpaces((current) =>
+        current.filter((item) => item.id !== space.id)
+      );
+
+      if (activeSpace?.id === space.id) {
+        setActiveSpace(null);
+        setSessionOpen(false);
+      }
+
+      window.alert("Você saiu do grupo.");
+    } catch (error) {
+      console.error("Erro ao sair do grupo:", error);
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível sair do grupo."
+      );
+    } finally {
+      setLeavingSpaceId(null);
+    }
+  }
+
+  async function handleDismissDeparture(
+    space: Space,
+    departure: SpaceDeparture
+  ) {
+    if (!authUid) return;
+
+    try {
+      await dismissSpaceDeparture(
+        space.id,
+        departure.id,
+        authUid
+      );
+
+      setSpaceDepartures((current) => ({
+        ...current,
+        [space.id]: null,
+      }));
+    } catch (error) {
+      console.error("Erro ao dispensar aviso:", error);
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível dispensar o aviso."
+      );
+    }
+  }
+  
   async function handleRemoveFromSession() {
   if (!activeSpace || !authUid || !removeTarget) return;
 
@@ -747,75 +849,115 @@ async function handleDeleteSpace(space: Space) {
                 Carregando seus grupos...
               </div>
             ) : (
-              userSpaces.map((space) => {
-                const selected = activeSpace?.id === space.id;
 
-                return (
-                  <div
-                    key={space.id}
-                    className={[
-                      "rounded-2xl border p-4 transition",
-                      selected
-                        ? "border-pink-400/60 bg-pink-500/10"
-                        : "border-white/10 bg-white/[0.03] hover:border-pink-400/40",
-                    ].join(" ")}
+          userSpaces.map((space) => {
+            const selected = activeSpace?.id === space.id;
+            const departure = spaceDepartures[space.id];
+
+            return (
+              <div
+                key={space.id}
+                className={[
+                  "rounded-2xl border p-4 transition",
+                  selected
+                    ? "border-pink-400/60 bg-pink-500/10"
+                    : "border-white/10 bg-white/[0.03] hover:border-pink-400/40",
+                ].join(" ")}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSpace(space);
+                      setSessionOpen(false);
+                    }}
+                    className="min-w-0 flex-1 text-left"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveSpace(space);
-                          setSessionOpen(false);
-                        }}
-                        className="min-w-0 flex-1 text-left"
-                      >
-                        <div className="text-xl">
-                          {space.mode === "couple" ? "💞" : "👾"}
-                        </div>
-
-                        <div className="mt-3 font-pixel text-[10px] text-white">
-                          {space.name}
-                        </div>
-
-                        <div className="mt-2 font-retro text-sm text-slate-400">
-                          {space.mode === "couple" ? "CASALZINHO" : "GRUPINHO"}
-                          {" · "}
-                          {space.status === "active"
-                            ? "ATIVA"
-                            : space.status === "waiting"
-                              ? "AGUARDANDO"
-                              : "BLOQUEADA"}
-                        </div>
-
-                        {selected && (
-                          <div className="mt-3 font-pixel text-[8px] text-pink-300">
-                            SELECIONADO
-                          </div>
-                        )}
-                      </button>
-
-                      {space.hostUid === authUid && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSpace(space)}
-                          disabled={deletingSpaceId !== null}
-                          aria-label={`Excluir grupo ${space.name}`}
-                          className="shrink-0 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 font-pixel text-[8px] text-red-300 transition hover:bg-red-500/20 disabled:cursor-wait disabled:opacity-50"
-                        >
-                          <span className="flex items-center gap-1">
-                            <Trash2 size={13} />
-                            {deletingSpaceId === space.id
-                              ? "EXCLUINDO..."
-                              : "EXCLUIR"}
-                          </span>
-                        </button>
-                      )}
+                    <div className="text-xl">
+                      {space.mode === "couple" ? "💞" : "👾"}
                     </div>
+
+                    <div className="mt-3 font-pixel text-[10px] text-white">
+                      {space.name}
+                    </div>
+
+                    <div className="mt-2 font-retro text-sm text-slate-400">
+                      {space.mode === "couple" ? "CASALZINHO" : "GRUPINHO"}
+                      {" · "}
+                      {space.status === "active"
+                        ? "ATIVA"
+                        : space.status === "waiting"
+                          ? "AGUARDANDO"
+                          : "BLOQUEADA"}
+                    </div>
+
+                    {selected && (
+                      <div className="mt-3 font-pixel text-[8px] text-pink-300">
+                        SELECIONADO
+                      </div>
+                    )}
+                  </button>
+
+                  {space.hostUid === authUid ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSpace(space)}
+                      disabled={deletingSpaceId !== null}
+                      aria-label={`Excluir grupo ${space.name}`}
+                      className="shrink-0 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 font-pixel text-[8px] text-red-300 transition hover:bg-red-500/20 disabled:cursor-wait disabled:opacity-50"
+                    >
+                      <span className="flex items-center gap-1">
+                        <Trash2 size={13} />
+                        {deletingSpaceId === space.id
+                          ? "EXCLUINDO..."
+                          : "EXCLUIR"}
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleLeaveSpace(space)}
+                      disabled={
+                        leavingSpaceId !== null ||
+                        deletingSpaceId !== null
+                      }
+                      aria-label={`Sair do grupo ${space.name}`}
+                      className="shrink-0 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 font-pixel text-[8px] text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-50"
+                    >
+                      {leavingSpaceId === space.id
+                        ? "SAINDO..."
+                        : "SAIR DO GRUPO"}
+                    </button>
+                  )}
+                </div>
+
+                {space.hostUid === authUid && departure && (
+                  <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
+                    <div className="font-pixel text-[8px] text-amber-200">
+                      AVISO DE SAÍDA
+                    </div>
+
+                    <p className="mt-2 text-sm text-slate-200">
+                      {departure.avatar} {departure.username} saiu deste
+                      grupo.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDismissDeparture(space, departure)
+                      }
+                      className="mt-3 rounded-lg border border-white/10 px-3 py-2 font-pixel text-[8px] text-white transition hover:bg-white/10"
+                    >
+                      ENTENDI
+                    </button>
                   </div>
-                );
-              })
-            )}
-          </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
 
           {!spacesLoading && userSpaces.length === 0 && (
             <p className="mt-3 font-retro text-sm text-slate-500">
