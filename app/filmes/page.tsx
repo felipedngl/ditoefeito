@@ -1517,52 +1517,147 @@ function SharedSessionModal({
             </div>
           ) : (
             <div className="space-y-4">
-              {titles.map((title) => {
-                const key = `${title.mediaType}_${title.mediaId}`;
-                const titleRatings = ratings[key] || [];
-
-                const voteCount = titleRatings.length;
-
-                const average = voteCount
-                  ? titleRatings.reduce(
-                      (sum, item) =>
-                        sum + item.rating,
-                      0
-                    ) / voteCount
-                  : 0;
-
-                const myRating = titleRatings.find(
-                  (item) =>
-                    item.uid === currentUid
-                );
-
-                const addedByMember =
-                  members.find(
-                    (member) =>
-                      member.uid === title.addedBy
-                  );
-
-                const pendingMembers =
-                  members.filter(
-                    (member) =>
-                      !titleRatings.some(
-                        (rating) =>
-                          rating.uid === member.uid
-                      )
-                  );
-
-                return (
-                  <div
-                    key={key}
-                    className="relative rounded-3xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-pink-400/40 hover:bg-white/[0.05]"
-                  >
+            {titles.map((title) => {
+              const key = `${title.mediaType}_${title.mediaId}`;
+              const titleRatings = ratings[key] || [];
+              const voteCount = titleRatings.length;
+            
+              const average = voteCount
+                ? titleRatings.reduce(
+                    (sum, item) => sum + item.rating,
+                    0
+                  ) / voteCount
+                : 0;
+            
+              const myRating = titleRatings.find(
+                (item) => item.uid === currentUid
+              );
+            
+              const addedByMember = members.find(
+                (member) => member.uid === title.addedBy
+              );
+            
+              const pendingMembers = members.filter(
+                (member) =>
+                  !titleRatings.some(
+                    (rating) => rating.uid === member.uid
+                  )
+              );
+            
+              const canRemove =
+                title.addedBy === currentUid ||
+                space.hostUid === currentUid;
+            
+              return (
+                <div
+                  key={key}
+                  className="relative rounded-3xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-pink-400/40 hover:bg-white/[0.05]"
+                >
+                  <div className="flex gap-4">
                     <button
                       type="button"
-                      onClick={() =>
-                        onOpenTitle(title)
-                      }
-                      className="w-full text-left"
+                      onClick={() => onOpenTitle(title)}
+                      className="flex min-w-0 flex-1 gap-4 text-left"
+                      aria-label={`Avaliar ${title.title}`}
                     >
+                      <div className="h-32 w-[88px] shrink-0 overflow-hidden rounded-2xl bg-black/30">
+                        {title.posterPath ? (
+                          <img
+                            src={`${TMDB_IMAGE_BASE}${title.posterPath}`}
+                            alt={title.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center p-2 text-center font-pixel text-[7px] text-slate-600">
+                            SEM IMAGEM
+                          </div>
+                        )}
+                      </div>
+            
+                      <div className="min-w-0 flex-1">
+                        <div className="font-pixel text-[8px] text-cyan-300">
+                          {title.mediaType === "movie" ? "FILME" : "SÉRIE"}
+                        </div>
+            
+                        <div className="mt-1 font-retro text-lg text-white">
+                          {title.title}
+                        </div>
+            
+                        <div className="mt-2 font-retro text-xs text-slate-500">
+                          Adicionado por{" "}
+                          {addedByMember
+                            ? `${addedByMember.avatar} ${addedByMember.username}`
+                            : "participante"}
+                        </div>
+            
+                        <div className="mt-4 flex flex-wrap gap-4">
+                          <div>
+                            <div className="font-pixel text-[7px] text-slate-500">
+                              MÉDIA
+                            </div>
+                            <div className="mt-1 font-pixel text-sm text-yellow-300">
+                              {voteCount ? average.toFixed(2) : "--"}
+                            </div>
+                          </div>
+            
+                          <div>
+                            <div className="font-pixel text-[7px] text-slate-500">
+                              VOTOS
+                            </div>
+                            <div className="mt-1 font-pixel text-sm text-white">
+                              {voteCount}/{members.length}
+                            </div>
+                          </div>
+            
+                          <div>
+                            <div className="font-pixel text-[7px] text-slate-500">
+                              SUA NOTA
+                            </div>
+                            <div className="mt-1 font-pixel text-sm text-pink-300">
+                              {myRating
+                                ? myRating.rating.toFixed(1)
+                                : "FALTA"}
+                            </div>
+                          </div>
+                        </div>
+            
+                        {pendingMembers.length > 0 && (
+                          <div className="mt-3 font-retro text-xs text-slate-400">
+                            Aguardando:{" "}
+                            {pendingMembers
+                              .map((member) => member.username)
+                              .join(", ")}
+                          </div>
+                        )}
+            
+                        <div className="mt-4 font-pixel text-[8px] text-pink-300">
+                          {myRating
+                            ? "ALTERAR MINHA NOTA →"
+                            : "DAR MINHA NOTA →"}
+                        </div>
+                      </div>
+                    </button>
+            
+                    {canRemove && (
+                      <button
+                        type="button"
+                        onClick={() => onRequestRemove(title)}
+                        aria-label={`Remover ${title.title} da sessão`}
+                        className="h-fit shrink-0 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 font-pixel text-[8px] text-red-300 transition hover:border-red-300/50 hover:bg-red-500/20 hover:text-red-200"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Trash2 size={13} />
+                          <span className="hidden sm:inline">
+                            REMOVER
+                          </span>
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+              
                     <div className="flex gap-4">
                       <div className="h-32 w-[88px] shrink-0 overflow-hidden rounded-2xl bg-black/30">
                         {title.posterPath ? (
