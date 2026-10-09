@@ -329,7 +329,6 @@ export default function PerfilPage() {
                 {modeLabel}
               </span>
 
-              {hasSpace && (
               {userSpaces.map((space) => (
                 <span
                   key={space.id}
