@@ -23,12 +23,18 @@ import {
   type UserProfile,
 } from "@/lib/auth";
 
+import {
+  getUserSpaces,
+  type Space,
+} from "@/lib/spaces";
+
 export default function PerfilPage() {
   const router = useRouter();
 
   const [profile, setProfile] =
     useState<UserProfile | null>(null);
-
+    
+  const [userSpaces, setUserSpaces] = useState<Space[]>([]);
   const [username, setUsername] = useState("");
   const [avatar, setAvatar] = useState("");
   const [loading, setLoading] = useState(true);
@@ -56,6 +62,9 @@ export default function PerfilPage() {
         setProfile(userProfile);
         setUsername(userProfile.username);
         setAvatar(userProfile.avatar);
+                
+        const spaces = await getUserSpaces(user.uid);
+        setUserSpaces(spaces);
       } catch (err) {
         console.error(err);
 
@@ -321,10 +330,14 @@ export default function PerfilPage() {
               </span>
 
               {hasSpace && (
-                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 font-pixel text-[8px] text-cyan-300">
-                  💞 {profile.spaceName}
+              {userSpaces.map((space) => (
+                <span
+                  key={space.id}
+                  className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 font-pixel text-[8px] text-cyan-300"
+                >
+                  💞 {space.name}
                 </span>
-              )}
+              ))}
             </div>
 
             <div className="mt-6 flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:justify-center">
