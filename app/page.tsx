@@ -9,7 +9,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   createAccountWithEmail,
@@ -18,10 +18,32 @@ import {
   resetPassword,
   signInWithEmail,
   signInWithGoogle,
+  subscribeToAuth,
 } from "@/lib/auth";
 
 export default function HomePage() {
   const router = useRouter();
+
+    useEffect(() => {
+    const unsubscribe = subscribeToAuth(async (user) => {
+      if (!user || user.isAnonymous) {
+        return;
+      }
+
+      try {
+        const profile = await getUserProfile(user.uid);
+
+        router.replace(profile ? "/filmes" : "/configurar");
+      } catch (err) {
+        console.error(
+          "Não foi possível verificar o perfil salvo:",
+          err
+        );
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
