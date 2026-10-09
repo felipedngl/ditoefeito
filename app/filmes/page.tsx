@@ -17,6 +17,7 @@ import {
 
 import {
   addTitleToSpace,
+  deleteSpace,
   removeTitleFromSpace,
   saveSpaceRating,
   subscribeToMembers,
