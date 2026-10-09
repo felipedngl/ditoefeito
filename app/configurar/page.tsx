@@ -2,6 +2,7 @@
 
 import {
   Suspense,
+  useEffect,
   useState,
 } from "react";
 
@@ -14,9 +15,11 @@ import {
   AVATARS,
   createUsername,
   ensureAnonymousUser,
+  getUserProfile,
   randomAvatar,
   saveUserProfile,
   slugifyUsername,
+  subscribeToAuth,
   type ProfileMode,
 } from "@/lib/auth";
 
@@ -67,6 +70,35 @@ function ConfigurarContent() {
 
   const [spaceName, setSpaceName] =
     useState("");
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAuth(
+      async (user) => {
+        if (!user) {
+          return;
+        }
+
+        try {
+          const savedProfile =
+            await getUserProfile(user.uid);
+
+          if (!savedProfile) {
+            return;
+          }
+
+          setUsername(savedProfile.username || "");
+          setAvatar(savedProfile.avatar || "");
+        } catch (err) {
+          console.error(
+            "Não foi possível carregar o perfil salvo:",
+            err
+          );
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   /*
    * Se veio de um convite, o código já
