@@ -1235,11 +1235,17 @@ function RatingModal({
   }, [uid, item.id, item.type]);
 
   function selectRating(star: number) {
-    if (rating === star) {
-      setRating(star - 0.5);
-    } else {
-      setRating(star);
-    }
+    setRating((currentRating) => {
+      if (currentRating === star) {
+        return star - 0.5;
+      }
+  
+      if (currentRating === star - 0.5) {
+        return star;
+      }
+  
+      return star;
+    });
   }
 
   async function handleSave() {
