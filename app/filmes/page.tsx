@@ -475,6 +475,46 @@ export default function FilmesPage() {
 
   const isSharedMode = !!activeSpace;
 
+  const [deletingSpaceId, setDeletingSpaceId] = useState<string | null>(null);
+
+async function handleDeleteSpace(space: Space) {
+  if (!authUid || deletingSpaceId) return;
+
+  const confirmed = window.confirm(
+    `Tem certeza que deseja excluir o grupo "${space.name}"? ` +
+    "Essa ação removerá a sala e os dados compartilhados dela."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setDeletingSpaceId(space.id);
+
+    await deleteSpace(space.id, authUid);
+
+    setUserSpaces((current) =>
+      current.filter((item) => item.id !== space.id)
+    );
+
+    if (activeSpace?.id === space.id) {
+      setActiveSpace(null);
+      setSessionOpen(false);
+    }
+
+    window.alert("Grupo excluído com sucesso.");
+  } catch (error) {
+    console.error("Erro ao excluir grupo:", error);
+
+    window.alert(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível excluir o grupo."
+    );
+  } finally {
+    setDeletingSpaceId(null);
+  }
+}
+
 async function handleRemoveFromSession() {
   if (!activeSpace || !authUid || !removeTarget) return;
 
