@@ -722,19 +722,25 @@ async function handleDeleteSpace(space: Space) {
 
           <div className="flex items-center gap-3">
             {profile && (
-              <div className="hidden text-right sm:block">
-                <div className="font-retro text-sm text-white">
-                  {profile.avatar} {profile.username}
-                </div>
+              <button
+                type="button"
+                onClick={() => router.push("/perfil")}
+                className="hidden items-center gap-2 rounded-xl px-2 py-1 text-left transition hover:bg-white/[0.04] sm:flex"
+              >
+                <span className="text-xl">
+                  {profile.avatar}
+                </span>
 
-                <div className="font-pixel text-[8px] uppercase text-pink-300">
-                  {profile.mode === "solo"
-                    ? "SOZINHO"
-                    : profile.mode === "couple"
-                    ? "CASALZINHO"
-                    : "GRUPINHO"}
-                </div>
-              </div>
+                <span className="text-right">
+                  <span className="block font-pixel text-[9px] text-white">
+                    {profile.username}
+                  </span>
+
+                  <span className="block font-retro text-sm text-slate-500">
+                    @{profile.usernameSlug}
+                  </span>
+                </span>
+              </button>
             )}
 
             <button
