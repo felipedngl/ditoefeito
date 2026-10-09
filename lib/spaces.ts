@@ -1,5 +1,6 @@
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
@@ -150,6 +151,56 @@ async function generateUniqueCode(): Promise<string> {
   throw new Error(
     "Não foi possível gerar um código de sala."
   );
+}
+
+/* =========================================================
+   SALAS DAS QUAIS O USUÁRIO PARTICIPA
+   ========================================================= */
+
+export async function getUserSpaces(
+  currentUid: string
+): Promise<Space[]> {
+  const membershipsQuery = query(
+    collectionGroup(db, "members"),
+    where("uid", "==", currentUid)
+  );
+
+  const membershipsSnapshot = await withTimeout(
+    getDocs(membershipsQuery),
+    "Não foi possível carregar seus grupos."
+  );
+
+  const spaceRefs = new Map<
+    string,
+    ReturnType<typeof doc>
+  >();
+
+  membershipsSnapshot.docs.forEach((membership) => {
+    const spaceRef = membership.ref.parent.parent;
+
+    if (spaceRef) {
+      spaceRefs.set(spaceRef.id, spaceRef);
+    }
+  });
+
+  const spaces = await Promise.all(
+    Array.from(spaceRefs.values()).map(async (spaceRef) => {
+      const snapshot = await getDoc(spaceRef);
+
+      if (!snapshot.exists()) {
+        return null;
+      }
+
+      return {
+        id: snapshot.id,
+        ...(snapshot.data() as Omit<Space, "id">),
+      };
+    })
+  );
+
+  return spaces
+    .filter((space): space is Space => space !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /* =========================================================
