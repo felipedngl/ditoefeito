@@ -35,6 +35,30 @@ import {
   type SpaceTitle,
 } from "@/lib/spaces";
 
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  message: string,
+  timeoutMs = 12000
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
+}
+
 export default function PodioPage() {
   const router = useRouter();
 
@@ -48,7 +72,7 @@ export default function PodioPage() {
     useState<Space | null>(null);
 
   const [userSpaces, setUserSpaces] =
-  useState<Space[]>([]);
+    useState<Space[]>([]);
 
   const [members, setMembers] =
     useState<SpaceMember[]>([]);
@@ -64,47 +88,94 @@ export default function PodioPage() {
 
   const [spaceLoading, setSpaceLoading] =
     useState(false);
+  
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
-  useEffect(() => {
-    const unsubscribe = subscribeToAuth(
-      async (user) => {
-        if (!user) {
-          router.replace("/");
-          return;
-        }
 
-        try {
-          const userProfile =
-            await getUserProfile(user.uid);
+useEffect(() => {
+  setLoading(true);
+  setLoadError(null);
 
-          if (!userProfile) {
-            router.replace("/configurar");
-            return;
-          }
+  const unsubscribe = subscribeToAuth(async (user) => {
+    if (!user) {
+      router.replace("/");
+      return;
+    }
 
-          setProfile(userProfile);
+    try {
+      const results = await Promise.allSettled([
+        withTimeout(
+          getUserProfile(user.uid),
+          "O perfil demorou para carregar."
+        ),
+        withTimeout(
+          getUserRatings(user.uid),
+          "Suas avaliações demoraram para carregar."
+        ),
+        withTimeout(
+          getUserSpaces(user.uid),
+          "Suas sessões demoraram para carregar."
+        ),
+      ]);
 
-          const savedRatings =
-            await getUserRatings(user.uid);
+      const profileResult = results[0];
+      const ratingsResult = results[1];
+      const spacesResult = results[2];
 
-          setRatings(savedRatings);
-
-          const joinedSpaces =
-            await getUserSpaces(user.uid);
-          
-          setUserSpaces(joinedSpaces);
-          setSpace(null);
-          
-        } catch (error) {
-          console.error(error);
-        } finally {
-          setLoading(false);
-        }
+      if (profileResult.status === "rejected") {
+        throw profileResult.reason;
       }
-    );
 
-    return () => unsubscribe();
-  }, [router]);
+      const userProfile = profileResult.value;
+
+      if (!userProfile) {
+        router.replace("/configurar");
+        return;
+      }
+
+      setProfile(userProfile);
+
+      if (ratingsResult.status === "fulfilled") {
+        setRatings(ratingsResult.value);
+      } else {
+        console.error(
+          "Erro ao carregar avaliações:",
+          ratingsResult.reason
+        );
+        setRatings([]);
+        setLoadError(
+          "Não foi possível carregar suas avaliações. Você pode tentar novamente."
+        );
+      }
+
+      if (spacesResult.status === "fulfilled") {
+        setUserSpaces(spacesResult.value);
+      } else {
+        console.error(
+          "Erro ao carregar sessões:",
+          spacesResult.reason
+        );
+        setLoadError(
+          "Não foi possível carregar suas sessões compartilhadas. Tente novamente."
+        );
+      }
+
+      setSpace(null);
+    } catch (error) {
+      console.error("Erro ao abrir o Pódio:", error);
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar o Pódio."
+      );
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  return () => unsubscribe();
+}, [router, retryKey]);
 
 useEffect(() => {
   if (!space) {
@@ -119,10 +190,17 @@ useEffect(() => {
     subscribeToSpace(
       space.id,
       (nextSpace) => {
-        if (!nextSpace) return;
 
-        setSpace(nextSpace);
-        setSpaceLoading(false);
+if (!nextSpace) {
+  setSpaceLoading(false);
+  setLoadError(
+    "Não foi possível localizar esta sessão. Tente selecionar o grupo novamente."
+  );
+  return;
+}
+
+setSpace(nextSpace);
+setSpaceLoading(false);
       }
     );
 
@@ -237,9 +315,40 @@ useEffect(() => {
     );
   }
 
-  if (!profile) {
-    return null;
+
+if (!profile) {
+  if (loadError) {
+    return (
+      <main className="retro-grid flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
+        <p className="font-pixel text-sm text-pink-300">
+          NÃO FOI POSSÍVEL ABRIR O PÓDIO
+        </p>
+
+        <p className="max-w-md font-retro text-base text-slate-400">
+          {loadError}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setRetryKey((current) => current + 1)}
+          className="rounded-xl border border-pink-400/30 bg-pink-500/10 px-5 py-3 font-pixel text-[9px] text-pink-200"
+        >
+          TENTAR NOVAMENTE
+        </button>
+
+        <button
+          type="button"
+          onClick={() => router.push("/filmes")}
+          className="font-pixel text-[9px] text-slate-400 hover:text-white"
+        >
+          VOLTAR AO CATÁLOGO
+        </button>
+      </main>
+    );
   }
+
+  return null;
+}
 
 const sharedMode = !!space;
 
@@ -303,7 +412,22 @@ function selectGroupPodium(selectedSpace: Space) {
         </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-4 pb-16 md:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-16 md:px-6">        
+      {loadError && (
+        <div className="mt-5 rounded-2xl border border-pink-400/20 bg-pink-500/[0.06] p-4">
+          <p className="font-retro text-sm text-pink-200">
+            {loadError}
+          </p>
+      
+          <button
+            type="button"
+            onClick={() => setRetryKey((current) => current + 1)}
+            className="mt-3 rounded-lg border border-pink-400/30 px-4 py-2 font-pixel text-[8px] text-pink-200 hover:bg-pink-500/10"
+          >
+            TENTAR NOVAMENTE
+          </button>
+        </div>
+      )}
         <nav className="flex gap-2 overflow-x-auto py-5">
           <NavButton
             icon={<Film size={16} />}
