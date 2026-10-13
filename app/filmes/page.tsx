@@ -992,11 +992,37 @@ async function handleDeleteSpace(space: Space) {
         )}
       </div>
 
-          {!spacesLoading && userSpaces.length === 0 && (
-            <p className="mt-3 font-retro text-sm text-slate-500">
-              Você ainda não participa de grupos. Você pode continuar no modo SOZINHO ou criar uma sessão.
-            </p>
-          )}
+      {spacesLoading && (
+        <p className="mt-3 font-retro text-sm text-slate-400">
+          Procurando suas sessões...
+        </p>
+      )}
+
+      {!spacesLoading && spacesError && (
+        <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3">
+          <p className="font-retro text-sm text-amber-200">
+            {spacesError}
+          </p>
+
+          <button
+            type="button"
+            onClick={() =>
+              setSpacesReloadKey((current) => current + 1)
+            }
+            className="mt-3 rounded-lg border border-amber-300/30 px-3 py-2 font-pixel text-[8px] text-amber-100 transition hover:bg-amber-400/10"
+          >
+            TENTAR NOVAMENTE
+          </button>
+        </div>
+      )}
+
+      {!spacesLoading &&
+        !spacesError &&
+        userSpaces.length === 0 && (
+          <p className="mt-3 font-retro text-sm text-slate-500">
+            Você ainda não participa de grupos. Você pode continuar no modo SOZINHO ou criar uma sessão.
+          </p>
+        )}
 
           <button
             type="button"
