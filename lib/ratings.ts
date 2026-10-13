@@ -84,22 +84,12 @@ export async function saveRating(
     ratingDocId(rating.mediaType, rating.mediaId)
   );
 
-  const existing = await withTimeout(
-    getDoc(ref),
-    "O Firebase demorou demais para acessar sua avaliação."
-  );
-
   await withTimeout(
     setDoc(
       ref,
       {
         ...rating,
         updatedAt: serverTimestamp(),
-        ...(existing.exists()
-          ? {}
-          : {
-              createdAt: serverTimestamp(),
-            }),
       },
       { merge: true }
     ),
