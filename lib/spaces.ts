@@ -183,9 +183,13 @@ export async function getUserSpaces(
     }
   });
 
+
   const spaces = await Promise.all(
     Array.from(spaceRefs.values()).map(async (spaceRef) => {
-      const snapshot = await getDoc(spaceRef);
+      const snapshot = await withTimeout(
+        getDoc(spaceRef),
+        "Uma das suas sessões demorou demais para carregar."
+      );
 
       if (!snapshot.exists()) {
         return null;
