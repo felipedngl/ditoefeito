@@ -118,6 +118,7 @@ export default function FilmesPage() {
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
   const [ratingOpen, setRatingOpen] = useState(false);
   const returnScrollY = useRef(0);
+  const returnToSession = useRef(false);
 
   const [sessionOpen, setSessionOpen] = useState(false);
   const [addingTitleKey, setAddingTitleKey] = useState<string | null>(null);
@@ -447,9 +448,16 @@ export default function FilmesPage() {
     setRatingOpen(false);
   }
 
+
     function closeModal() {
       setSelectedItem(null);
       setRatingOpen(false);
+    
+      if (returnToSession.current) {
+        returnToSession.current = false;
+        setSessionOpen(true);
+        return;
+      }
     
       const params = new URLSearchParams(
         window.location.search
@@ -471,7 +479,6 @@ export default function FilmesPage() {
         });
       });
     }
-
 
   async function addToSession(item: MediaItem) {
     if (!activeSpace || !authUid) return;
@@ -1180,6 +1187,7 @@ async function handleDeleteSpace(space: Space) {
           onClose={() => setSessionOpen(false)}
           onOpenTitle={(title) => {
             returnScrollY.current = window.scrollY;
+            returnToSession.current = true;
             setSessionOpen(false);
             setSelectedItem(titleToMediaItem(title));
             setRatingOpen(true);
@@ -1696,6 +1704,22 @@ function SharedSessionModal({
   onOpenTitle: (title: SpaceTitle) => void;
   onRequestRemove: (title: SpaceTitle) => void;
 }) {
+
+  const sortedTitles = [...titles].sort((a, b) => {
+    const keyA = `${a.mediaType}_${a.mediaId}`;
+    const keyB = `${b.mediaType}_${b.mediaId}`;
+
+    const votedA = (ratings[keyA] || []).some(
+      (rating) => rating.uid === currentUid
+    );
+
+    const votedB = (ratings[keyB] || []).some(
+      (rating) => rating.uid === currentUid
+    );
+
+    return Number(votedA) - Number(votedB);
+  });
+  
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
@@ -1752,7 +1776,7 @@ function SharedSessionModal({
             </div>
           ) : (
             <div className="space-y-4">
-            {titles.map((title) => {
+            {sortedTitles.map((title) => {
               const key = `${title.mediaType}_${title.mediaId}`;
               const titleRatings = ratings[key] || [];
               const voteCount = titleRatings.length;
