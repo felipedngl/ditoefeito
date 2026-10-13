@@ -1400,11 +1400,11 @@ function RatingModal({
   onSaved: () => void;
 }) {
   const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
   const [review, setReview] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [lastClickedStar, setLastClickedStar] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1447,19 +1447,18 @@ function RatingModal({
     };
   }, [uid, item.id, item.type]);
 
-  function selectRating(star: number) {
-    setRating((currentRating) => {
-      if (currentRating === star) {
-        return star - 0.5;
-      }
-  
-      if (currentRating === star - 0.5) {
-        return star;
-      }
-  
-      return star;
-    });
-  }
+function selectRating(star: number) {
+  setRating((currentRating) => {
+    if (lastClickedStar === star && currentRating === star) {
+      return star - 0.5;
+    }
+
+    return star;
+  });
+
+  setLastClickedStar(star);
+  setError("");
+}
 
   async function handleSave() {
     if (rating <= 0) {
@@ -1505,15 +1504,26 @@ function RatingModal({
         error
       );
 
-      setError(
-        "Não foi possível salvar agora. Tente novamente."
-      );
+const detail =
+  error instanceof Error
+    ? error.message
+    : typeof error === "object" &&
+        error !== null &&
+        "code" in error
+      ? String((error as { code?: unknown }).code)
+      : String(error);
+
+console.error("Detalhe do erro ao salvar avaliação:", error);
+
+setError(
+  `Não foi possível salvar a avaliação. Detalhe: ${detail}`
+);
     } finally {
       setSaving(false);
     }
   }
 
-  const displayedRating = hoverRating || rating;
+  const displayedRating = rating;
 
   return (
     <div
@@ -1576,24 +1586,15 @@ function RatingModal({
                         onClick={() =>
                           selectRating(star)
                         }
-                        onMouseEnter={() =>
-                          setHoverRating(star)
-                        }
-                        onMouseLeave={() =>
-                          setHoverRating(0)
-                        }
                         className="relative p-1 text-yellow-300 transition hover:scale-110"
                         aria-label={`Nota ${star}`}
                       >
-                        <Star
-                          size={28}
-                          fill={
-                            isFull || isHalf
-                              ? "currentColor"
-                              : "transparent"
-                          }
-                          strokeWidth={1.5}
-                        />
+
+                      <Star
+                        size={28}
+                        fill={isFull ? "currentColor" : "transparent"}
+                        strokeWidth={1.5}
+                      />
 
                         {isHalf && (
                           <span className="pointer-events-none absolute inset-y-0 left-0 flex w-1/2 overflow-hidden">
