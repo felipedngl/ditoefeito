@@ -168,7 +168,7 @@ async function loadUserSpace() {
     setSpacesLoading(true);
     setSpacesError(null);
 
-    const spaces = await getUserSpaces(authUid);
+    const spaces = await getUserSpaces(authUid!);
 
     if (cancelled) return;
 
