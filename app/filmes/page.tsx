@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -97,7 +97,7 @@ export default function FilmesPage() {
   Record<string, SpaceDeparture | null>
 >({});
 
-const [leavingSpaceId, setLeavingSpaceId] = useState<string | null>(null);
+  const [leavingSpaceId, setLeavingSpaceId] = useState<string | null>(null);
   const [spacesLoading, setSpacesLoading] = useState(true);
 
   const [spaceMembers, setSpaceMembers] = useState<SpaceMember[]>([]);
@@ -117,6 +117,7 @@ const [leavingSpaceId, setLeavingSpaceId] = useState<string | null>(null);
 
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
   const [ratingOpen, setRatingOpen] = useState(false);
+  const returnScrollY = useRef(0);
 
   const [sessionOpen, setSessionOpen] = useState(false);
   const [addingTitleKey, setAddingTitleKey] = useState<string | null>(null);
@@ -437,27 +438,40 @@ const [leavingSpaceId, setLeavingSpaceId] = useState<string | null>(null);
   }
 
   function openDetails(item: MediaItem) {
+    returnScrollY.current = window.scrollY;
+  
+    setSearchTerm("");
+    setSearchResults([]);
+  
     setSelectedItem(item);
     setRatingOpen(false);
   }
 
-  function closeModal() {
-    setSelectedItem(null);
-    setRatingOpen(false);
-
-    const params = new URLSearchParams(
-      window.location.search
-    );
-
-    if (
-      params.get("edit") ||
-      params.get("sessionTitle")
-    ) {
-      router.replace("/filmes", {
-        scroll: false,
+    function closeModal() {
+      setSelectedItem(null);
+      setRatingOpen(false);
+    
+      const params = new URLSearchParams(
+        window.location.search
+      );
+    
+      if (
+        params.get("edit") ||
+        params.get("sessionTitle")
+      ) {
+        router.replace("/filmes", {
+          scroll: false,
+        });
+      }
+    
+      window.requestAnimationFrame(() => {
+        window.scrollTo({
+          top: returnScrollY.current,
+          behavior: "auto",
+        });
       });
     }
-  }
+
 
   async function addToSession(item: MediaItem) {
     if (!activeSpace || !authUid) return;
@@ -1165,6 +1179,7 @@ async function handleDeleteSpace(space: Space) {
           currentUid={authUid || ""}
           onClose={() => setSessionOpen(false)}
           onOpenTitle={(title) => {
+            returnScrollY.current = window.scrollY;
             setSessionOpen(false);
             setSelectedItem(titleToMediaItem(title));
             setRatingOpen(true);
@@ -1597,11 +1612,11 @@ setError(
                       />
 
                         {isHalf && (
-                          <span className="pointer-events-none absolute inset-y-0 left-0 flex w-1/2 overflow-hidden">
+                          <span className="pointer-events-none absolute left-1 top-1 h-7 w-3.5 overflow-hidden">
                             <Star
                               size={28}
                               fill="currentColor"
-                              strokeWidth={1.5}
+                              strokeWidth={0}
                             />
                           </span>
                         )}
