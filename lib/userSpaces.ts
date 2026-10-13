@@ -12,6 +12,9 @@ import type { Space } from "./spaces";
 
 const FIREBASE_TIMEOUT = 10000;
 
+/**
+ * Limita o tempo de espera de uma operação do Firebase.
+ */
 function withTimeout<T>(
   promise: Promise<T>,
   message: string
@@ -53,8 +56,8 @@ function withTimeout<T>(
  *
  * spaces/{spaceId}/members/{uid}
  *
- * Não usa sessionStorage, localStorage ou qualquer
- * armazenamento local para guardar a sala.
+ * Não utiliza sessionStorage ou localStorage para guardar
+ * a sala do usuário.
  */
 export async function getUserSpaces(
   uid: string
@@ -63,72 +66,69 @@ export async function getUserSpaces(
     return [];
   }
 
+  // Localiza as participações do usuário no Firestore.
   const membersQuery = query(
     collectionGroup(db, "members"),
     where("uid", "==", uid)
   );
 
-  const membersSnapshot =
-    await withTimeout(
-      getDocs(membersQuery),
-      "O Firebase demorou demais para localizar suas salas."
-    );
+  const membersSnapshot = await withTimeout(
+    getDocs(membersQuery),
+    "O Firebase demorou demais para localizar suas salas."
+  );
 
   if (membersSnapshot.empty) {
     return [];
   }
 
-  const spaces = new Map<string, Space>();
+  // Extrai os IDs das salas e remove possíveis duplicados.
+  const spaceIds = Array.from(
+    new Set(
+      membersSnapshot.docs
+        .map(
+          (memberDoc) =>
+            memberDoc.ref.parent.parent?.id
+        )
+        .filter((id): id is string => Boolean(id))
+    )
+  );
 
-  for (const memberDoc of membersSnapshot.docs) {
-    const spaceRef =
-      memberDoc.ref.parent.parent;
+  // Busca os documentos das salas em paralelo.
+  const loadedSpaces = await Promise.all(
+    spaceIds.map(
+      async (spaceId): Promise<Space | null> => {
+        try {
+          const spaceSnapshot = await withTimeout(
+            getDoc(doc(db, "spaces", spaceId)),
+            "O Firebase demorou demais para carregar uma sala."
+          );
 
-    if (!spaceRef) {
-      continue;
-    }
+          if (!spaceSnapshot.exists()) {
+            return null;
+          }
 
-    if (spaces.has(spaceRef.id)) {
-      continue;
-    }
+          return {
+            id: spaceSnapshot.id,
+            ...(spaceSnapshot.data() as Omit<
+              Space,
+              "id"
+            >),
+          };
+        } catch (error) {
+          console.error(
+            `Erro ao carregar a sala ${spaceId}:`,
+            error
+          );
 
-    try {
-      const spaceSnapshot =
-        await withTimeout(
-          getDoc(
-            doc(
-              db,
-              "spaces",
-              spaceRef.id
-            )
-          ),
-          "O Firebase demorou demais para carregar uma sala."
-        );
-
-      if (!spaceSnapshot.exists()) {
-        continue;
-      }
-
-      spaces.set(
-        spaceSnapshot.id,
-        {
-          id: spaceSnapshot.id,
-          ...(spaceSnapshot.data() as Omit<
-            Space,
-            "id"
-          >),
+          return null;
         }
-      );
-    } catch (error) {
-      console.error(
-        "Erro ao carregar sala do usuário:",
-        error
-      );
-    }
-  }
+      }
+    )
+  );
 
-  return Array.from(
-    spaces.values()
+  // Retorna somente as salas carregadas com sucesso.
+  return loadedSpaces.filter(
+    (space): space is Space => space !== null
   );
 }
 
@@ -137,7 +137,6 @@ export async function getUserSpaces(
  * automaticamente no catálogo.
  *
  * Prioridade:
- *
  * 1. Sala ativa
  * 2. Sala aguardando participantes
  * 3. Sala bloqueada
@@ -149,31 +148,25 @@ export function getPreferredUserSpace(
     return null;
   }
 
-  const activeSpace =
-    spaces.find(
-      (space) =>
-        space.status === "active"
-    );
+  const activeSpace = spaces.find(
+    (space) => space.status === "active"
+  );
 
   if (activeSpace) {
     return activeSpace;
   }
 
-  const waitingSpace =
-    spaces.find(
-      (space) =>
-        space.status === "waiting"
-    );
+  const waitingSpace = spaces.find(
+    (space) => space.status === "waiting"
+  );
 
   if (waitingSpace) {
     return waitingSpace;
   }
 
-  const lockedSpace =
-    spaces.find(
-      (space) =>
-        space.status === "locked"
-    );
+  const lockedSpace = spaces.find(
+    (space) => space.status === "locked"
+  );
 
   return lockedSpace ?? null;
 }
