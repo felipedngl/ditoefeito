@@ -99,6 +99,8 @@ export default function FilmesPage() {
 
   const [leavingSpaceId, setLeavingSpaceId] = useState<string | null>(null);
   const [spacesLoading, setSpacesLoading] = useState(true);
+  const [spacesError, setSpacesError] = useState<string | null>(null);
+  const [spacesReloadKey, setSpacesReloadKey] = useState(0);
 
   const [spaceMembers, setSpaceMembers] = useState<SpaceMember[]>([]);
   const [spaceTitles, setSpaceTitles] = useState<SpaceTitle[]>([]);
@@ -149,49 +151,53 @@ export default function FilmesPage() {
     return unsubscribe;
   }, []);
 
-  // Carrega todas as salas vinculadas à conta.
-  useEffect(() => {
-    if (!authUid) {
-      setActiveSpace(null);
-      setUserSpaces([]);
+// Carrega todas as salas vinculadas à conta.
+useEffect(() => {
+if (!authUid) {
+setActiveSpace(null);
+setUserSpaces([]);
+setSpacesError(null);
+setSpacesLoading(false);
+return;
+}
+
+let cancelled = false;
+
+async function loadUserSpace() {
+  try {
+    setSpacesLoading(true);
+    setSpacesError(null);
+
+    const spaces = await getUserSpaces(authUid);
+
+    if (cancelled) return;
+
+    setUserSpaces(spaces);
+
+    const preferredSpace = getPreferredUserSpace(spaces);
+    setActiveSpace(preferredSpace);
+  } catch (error) {
+    console.error("Erro ao localizar sala do usuário:", error);
+
+    if (!cancelled) {
+      // Preserva as sessões já carregadas caso ocorra uma falha.
+      setSpacesError(
+        "Não foi possível carregar suas sessões. Verifique sua conexão e tente novamente."
+      );
+    }
+  } finally {
+    if (!cancelled) {
       setSpacesLoading(false);
-      return;
     }
+  }
+}
 
-    let cancelled = false;
+loadUserSpace();
 
-    async function loadUserSpace() {
-      try {
-        setSpacesLoading(true);
-
-        const spaces = await getUserSpaces(authUid!);
-
-        if (cancelled) return;
-
-        setUserSpaces(spaces);
-
-        const preferredSpace = getPreferredUserSpace(spaces);
-        setActiveSpace(preferredSpace);
-      } catch (error) {
-        console.error("Erro ao localizar sala do usuário:", error);
-
-        if (!cancelled) {
-          setUserSpaces([]);
-          setActiveSpace(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setSpacesLoading(false);
-        }
-      }
-    }
-
-    loadUserSpace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authUid]);
+return () => {
+  cancelled = true;
+};
+}, [authUid, spacesReloadKey]);
 
   // Acompanha em tempo real a sala selecionada.
   useEffect(() => {
